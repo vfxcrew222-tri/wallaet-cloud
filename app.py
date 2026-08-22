@@ -83,7 +83,14 @@ def home():
 @app.route("/courier")
 def courier():
     body="""
-    <div id='s1' class='card gold'>
+    <div id='s0' class='card gold' style='text-align:center'>
+      <div class='lbl'>Step 1 · Scan the box</div>
+      <div style='font-size:64px;margin:14px 0'>🔳</div>
+      <div class='muted' style='margin-bottom:6px'>Point your delivery app at the Wallaet QR sticker on the box.</div>
+      <button class='b-gold' onclick='scan()'>📷  Scan box QR</button>
+    </div>
+    <div id='s1' class='card gold' style='display:none'>
+      <div class='st' style='margin-bottom:14px'>✅ Box identified: <b style='color:var(--gold)'>W-304</b><br><span class='muted'>Flat 304</span></div>
       <div class='lbl'>Platform</div>
       <select id='plat'><option>Amazon</option><option>Flipkart</option><option>Meesho</option><option>Ajio</option><option>JioMart</option><option>Blinkit</option></select>
       <div class='lbl'>Delivery Partner ID (required)</div>
@@ -101,6 +108,7 @@ def courier():
       <div id='st' class='st'>&hellip;</div>
     </div>"""
     js="""let poll;
+    function scan(){document.getElementById('s0').style.display='none';document.getElementById('s1').style.display='block';}
     async function req(){let pid=document.getElementById('pid').value,plat=document.getElementById('plat').value;
       if(pid.trim().length<3){alert('Enter Delivery Partner ID');return;}
       await fetch('/courier/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({partner_id:pid,platform:plat})});
@@ -111,7 +119,7 @@ def courier():
       else if(s.status=='approved'){dots(3);el.innerHTML="<span class='em'>✅</span>Verified! Box unlocking…";}
       else if(s.status=='unlocked'){dots(3);el.innerHTML="<span class='em'>🔓</span><b>Flap is OPEN</b><br>Drop the parcel now";}
       else if(s.status=='delivered'){dots(5);el.innerHTML="<span class='em'>📦</span><b>Delivered!</b><br>Thank you.";clearInterval(poll);}}"""
-    return shell("Courier · W-304", body, js)
+    return shell("Courier · scan to start", body, js)
 
 @app.route("/owner")
 def owner():
