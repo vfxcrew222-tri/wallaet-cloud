@@ -65,6 +65,8 @@ CSS = """
  .notif{background:linear-gradient(160deg,#14211a,#0f1712);border:1px solid var(--grn);border-radius:18px;padding:22px;text-align:center;animation:glow 1.4s infinite}
  .ring{width:96px;height:96px;border-radius:50%;border:3px solid #1e1e24;border-top-color:var(--gold);margin:0 auto 8px;animation:spin 1s linear infinite}
  @keyframes spin{to{transform:rotate(360deg)}}
+ @keyframes shake{0%,100%{transform:rotate(0)}20%{transform:rotate(-18deg)}40%{transform:rotate(15deg)}60%{transform:rotate(-12deg)}80%{transform:rotate(8deg)}}
+ .shake{animation:shake .6s ease-in-out infinite;transform-origin:top center}
 </style>"""
 
 def shell(role, body, js=""):
@@ -166,14 +168,27 @@ def courier():
 
 @app.route("/owner")
 def owner():
-    body="<div class='card'><div id='c'></div></div>"
-    js="""async function tick(){let s=await(await fetch('/state')).json();let c=document.getElementById('c');
+    body="""<div class='card'><div id='c'></div></div>
+    <audio id='ding' preload='auto'></audio>"""
+    js="""let last='';let ac;
+    function beep(times){try{if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();
+      for(let i=0;i<times;i++){let o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);
+        let t=ac.currentTime+i*0.5;o.frequency.setValueAtTime(880,t);o.frequency.setValueAtTime(1320,t+0.12);
+        g.gain.setValueAtTime(0.001,t);g.gain.exponentialRampToValueAtTime(0.4,t+0.03);g.gain.exponentialRampToValueAtTime(0.001,t+0.4);
+        o.start(t);o.stop(t+0.42);}}catch(e){}}
+    function alertOwner(){beep(3);if(navigator.vibrate)navigator.vibrate([300,120,300,120,300]);}
+    async function tick(){let s=await(await fetch('/state')).json();let c=document.getElementById('c');
+      if(s.status!=last){ // state just changed
+        if(s.status=='reached'){beep(1);if(navigator.vibrate)navigator.vibrate(200);}
+        if(s.status=='requested'&&s.mode=='mvp')alertOwner();
+        if(s.status=='delivered'){beep(1);}
+        last=s.status;}
       if(s.status=='idle')c.innerHTML="<div class='st'><span class='em'>🏠</span><b>All quiet</b><br><span class='muted'>Waiting for a delivery…</span></div>";
       else if(s.status=='reached')c.innerHTML="<div class='notif'><div style='font-size:40px'>📍🔔</div><b style='font-size:18px;color:var(--grn)'>Courier reached your address</b><br><span class='blink' style='color:var(--grn);font-weight:700'>● WALLAET ACTIVE</span><br><span class='muted'>Get ready — a delivery is starting</span></div>";
       else if(s.status=='scanned')c.innerHTML="<div class='st'><span class='em'>🔳</span><b>Courier at your box</b><br><span class='muted'>W-304 · identifying delivery…</span></div>";
       else if(s.status=='requested'){
         if(s.mode=='flex')c.innerHTML="<div class='st anim'><div class='ring'></div><b>"+s.platform+" delivery incoming</b><br><span class='muted'>Auto-verified by "+s.platform+" — no action needed</span></div>";
-        else c.innerHTML="<div class='card anim' style='margin:0;padding:20px'><div style='text-align:center'><span style='font-size:40px'>🔔</span><br><b style='font-size:18px'>Approve this delivery?</b></div><div style='margin-top:14px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><button class='b-grn' onclick='ok()'>✓  APPROVE DELIVERY</button></div>";}
+        else c.innerHTML="<div class='card anim' style='margin:0;padding:24px;border:1px solid var(--gold);animation:glow 1s infinite'><div style='text-align:center'><span class='shake' style='font-size:56px;display:inline-block'>🔔</span><br><b style='font-size:20px;color:var(--gold)'>Delivery request!</b><br><span class='muted'>Approve to open the box</span></div><div style='margin-top:16px;text-align:center'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><button class='b-grn' onclick='ok()'>✓  APPROVE DELIVERY</button><button class='b-dark' onclick='alertOwner()' style='margin-top:8px'>🔔 Ring again</button></div>";}
       else if(s.status=='approved'||s.status=='unlocked')c.innerHTML="<div class='st anim'><span class='em'>🔓</span><b>Approved</b><br><span class='muted'>Delivery in progress…</span></div>";
       else if(s.status=='delivered')c.innerHTML="<div class='dcard anim'><div style='display:flex;justify-content:space-between;align-items:center'><b style='color:var(--grn);font-size:16px'>📦 DELIVERED</b><span style='color:var(--grn);font-size:22px'>✓</span></div><div style='margin-top:12px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><div style='margin-top:16px'><span class='muted'>WEIGHT CAPTURED</span><div class='big'>"+s.weight+" <span style='font-size:20px;color:var(--gr)'>g</span></div></div>"+(s.photo?"<div class='photo'><span style='font-size:30px'>📸</span>Delivery photo captured</div>":"")+"</div>";}
     async function ok(){await fetch('/owner/approve',{method:'POST'});}
