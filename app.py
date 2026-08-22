@@ -44,6 +44,10 @@ CSS = """
  a{color:var(--gold);text-decoration:none} .link-btn{display:block;margin-top:10px}
  .modebox{font-size:12px;padding:10px;border-radius:8px;margin-top:8px}
  .footer{text-align:center;color:#555;font-size:11px;margin-top:20px;letter-spacing:2px}
+ @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+ @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(111,160,122,.5)}50%{box-shadow:0 0 30px 6px rgba(111,160,122,.55)}}
+ .blink{animation:blink 1s infinite} .active{animation:glow 1.4s infinite;border-color:var(--grn)!important}
+ .notif{background:#12261a;border:1px solid var(--grn);border-radius:12px;padding:16px;text-align:center;animation:glow 1.4s infinite}
 </style>"""
 
 def shell(role, body, js=""):
@@ -128,7 +132,7 @@ def owner():
     body="<div class='card'><div id='c'></div></div>"
     js="""async function tick(){let s=await(await fetch('/state')).json();let c=document.getElementById('c');
       if(s.status=='idle')c.innerHTML="<div class='st'><span class='em'>🏠</span>Waiting for a delivery…</div>";
-      else if(s.status=='reached')c.innerHTML="<div class='st'><span class='em'>📍</span><b>Courier reached your address</b><br><span class='muted'>Wallaet is now active</span></div>";
+      else if(s.status=='reached')c.innerHTML="<div class='notif'><div style='font-size:40px'>📍🔔</div><b style='font-size:18px;color:var(--grn)'>Courier reached your address</b><br><span class='blink' style='color:var(--grn);font-weight:700'>● WALLAET ACTIVE</span><br><span class='muted'>Get ready — a delivery is starting</span></div>";
       else if(s.status=='scanned')c.innerHTML="<div class='st'><span class='em'>🔳</span><b>Courier at your box</b><br><span class='muted'>W-304 · identifying delivery…</span></div>";
       else if(s.status=='requested'){
         if(s.mode=='flex')c.innerHTML="<div class='st'><span class='em'>🔎</span><b>"+s.platform+" delivery incoming</b><br><span class='muted'>Verified by "+s.platform+" — no action needed</span></div>";
@@ -146,9 +150,9 @@ def box():
     <div class='card'><div class='lbl'>Simulate the box hardware</div>
       <button class='b-gold' onclick='drop()'>📦  Parcel dropped (weight + photo)</button>
       <div class='muted' style='margin-top:10px'>Flap unlocks automatically once a delivery is verified. Then tap above to simulate the parcel landing.</div></div>"""
-    js="""async function tick(){let s=await(await fetch('/state')).json();let el=document.getElementById('s');
+    js="""async function tick(){let s=await(await fetch('/state')).json();let el=document.getElementById('s');if(s.status!='reached')el.className='st';
       if(s.status=='idle')el.innerHTML="<span class='em'>😴</span>Standby — locked";
-      else if(s.status=='reached')el.innerHTML="<span class='em'>🔔</span>Courier nearby — waking up";
+      else if(s.status=='reached'){el.className='st active';el.innerHTML="<span class='em blink'>🟢</span><b class='blink' style='color:var(--grn)'>WALLAET ACTIVE</b><br><span class='muted'>Light blinking · ready for courier</span>";}
       else if(s.status=='scanned')el.innerHTML="<span class='em'>🔦</span>Scanned — beep + light ON";
       else if(s.status=='requested')el.innerHTML="<span class='em'>⏳</span>Verification in progress…";
       else if(s.status=='approved'){el.innerHTML="<span class='em'>🔓</span>UNLOCK received — opening flap";await fetch('/box/unlocked',{method:'POST'});}
