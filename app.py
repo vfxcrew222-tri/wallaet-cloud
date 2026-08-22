@@ -89,9 +89,11 @@ def courier():
     </div>
     <div id='s1' class='card gold' style='display:none;text-align:center'>
       <div class='lbl'>Step 2 · Find the box</div>
-      <div style='font-size:56px;margin:12px 0'>🔳</div>
-      <div class='muted' style='margin-bottom:6px'>Scan the Wallaet QR sticker on the box.</div>
+      <div id='qricon' style='font-size:56px;margin:12px 0'>🔳</div>
+      <div id='reader' style='width:100%;border-radius:12px;overflow:hidden;display:none'></div>
+      <div class='muted' style='margin:8px 0 6px' id='scanhint'>Scan the Wallaet QR sticker on the box.</div>
       <button class='b-gold' onclick='scan()'>📷  Scan box QR</button>
+      <button class='b-dark' onclick='manualScan()' style='margin-top:8px'>Enter code manually</button>
     </div>
     <div id='s2' class='card gold' style='display:none'>
       <div class='st' style='margin-bottom:12px'>✅ Box: <b style='color:var(--gold)'>W-304</b> · <span class='muted'>Flat 304</span></div>
@@ -116,7 +118,20 @@ def courier():
     </div>"""
     js="""let poll;const INTEG=['Amazon','Flipkart'];
     async function reached(){await fetch('/courier/reached',{method:'POST'});document.getElementById('s0').style.display='none';document.getElementById('s1').style.display='block';}
-    function scan(){document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='block';modeHint();}
+    function goForm(){fetch('/courier/scan',{method:'POST'});document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='block';modeHint();}
+    function manualScan(){goForm();}
+    let qr;
+    function scan(){
+      document.getElementById('qricon').style.display='none';
+      document.getElementById('reader').style.display='block';
+      document.getElementById('scanhint').textContent='Point the camera at the Wallaet QR…';
+      if(typeof Html5Qrcode==='undefined'){document.getElementById('scanhint').textContent='Scanner not loaded — use manual.';return;}
+      qr=new Html5Qrcode('reader');
+      qr.start({facingMode:'environment'},{fps:10,qrbox:220},
+        (txt)=>{qr.stop().then(()=>{goForm();});},
+        ()=>{}
+      ).catch(e=>{document.getElementById('scanhint').textContent='Camera unavailable — tap “Enter code manually”.';});
+    }
     function modeHint(){let p=document.getElementById('plat').value;let m=document.getElementById('mh');
       if(INTEG.includes(p)){m.style.background='#12261a';m.style.color='#6FA07A';m.innerHTML='<b>FLEX</b> — '+p+' is integrated. Box will auto-verify & open (no owner approval).';}
       else{m.style.background='#2a2410';m.style.color='#C9A24B';m.innerHTML='<b>MVP</b> — '+p+' not integrated. The owner will approve this delivery.';}}
@@ -130,7 +145,7 @@ def courier():
       else if(s.status=='approved'){dots(3);el.innerHTML="<span class='em'>✅</span>Verified! Box unlocking…";}
       else if(s.status=='unlocked'){dots(3);el.innerHTML="<span class='em'>🔓</span><b>Flap is OPEN</b><br>Drop the parcel now";}
       else if(s.status=='delivered'){dots(5);el.innerHTML="<span class='em'>📦</span><b>Delivered!</b><br>Thank you.";clearInterval(poll);}}"""
-    return shell("Courier", body, js)
+    return shell("Courier", "<script src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'></script>"+body, js)
 
 @app.route("/owner")
 def owner():
