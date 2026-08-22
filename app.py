@@ -13,47 +13,64 @@ def setst(x): S["status"]=x; S["last"]=time.time()
 
 CSS = """
 <meta name='viewport' content='width=device-width,initial-scale=1'>
+<link href='https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&display=swap' rel='stylesheet'>
 <style>
- :root{--gold:#C9A24B;--goldl:#E6C976;--bk:#0B0B0C;--pan:#16161A;--pan2:#1E1E24;--wh:#F4F1EA;--gr:#9A968C;--grn:#6FA07A;--red:#C0563F}
- *{box-sizing:border-box}
- body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:radial-gradient(circle at 50% -10%,#181820,#0B0B0C 60%);color:var(--wh);margin:0;min-height:100vh}
- .wrap{max-width:470px;margin:auto;padding:18px}
- .hdr{display:flex;align-items:center;justify-content:space-between;padding:6px 2px 14px;border-bottom:1px solid #26262c}
- .logo{font-size:22px;font-weight:800;letter-spacing:3px;color:var(--gold)} .role{font-size:12px;color:var(--gr)}
- .pill{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:.5px}
+ :root{--gold:#C9A24B;--goldl:#E6C976;--bk:#0B0B0C;--pan:#16161A;--pan2:#1E1E24;--wh:#F4F1EA;--gr:#9A968C;--grn:#6FA07A;--red:#C0563F;--blu:#5B8DEF}
+ *{box-sizing:border-box;margin:0;padding:0}
+ body{font-family:'Sora',-apple-system,Segoe UI,Roboto,sans-serif;background:#000;color:var(--wh);min-height:100vh;display:flex;justify-content:center;align-items:flex-start}
+ .phone{width:100%;max-width:430px;min-height:100vh;background:radial-gradient(circle at 50% -8%,#1a1a24,#0B0B0C 55%);position:relative;padding:0 0 30px;overflow:hidden}
+ .nav{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:16px 20px 14px;background:rgba(11,11,12,.9);backdrop-filter:blur(14px);border-bottom:1px solid #1e1e24}
+ .nav .l{display:flex;align-items:center;gap:9px}
+ .nav .dotL{width:9px;height:9px;border-radius:50%;background:var(--grn);box-shadow:0 0 8px var(--grn)}
+ .nav .logo{font-size:17px;font-weight:800;letter-spacing:3px;color:var(--gold)}
+ .nav .role{font-size:11px;color:var(--gr);margin-top:1px}
+ .pill{padding:5px 13px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:.5px}
  .p-mvp{background:#2a2410;color:var(--gold)} .p-flex{background:#12261a;color:var(--grn)}
- .card{background:var(--pan);border:1px solid #26262c;border-radius:16px;padding:20px;margin:14px 0;box-shadow:0 8px 30px rgba(0,0,0,.4)}
- .gold{border-color:var(--gold)}
- .lbl{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gr);margin:14px 0 6px}
- input,select{width:100%;padding:13px;border-radius:10px;border:1px solid #333;background:#0d0d10;color:var(--wh);font-size:15px}
- button{width:100%;padding:15px;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;margin-top:12px;transition:.15s}
- button:active{transform:scale(.98)}
- .b-gold{background:linear-gradient(135deg,#E6C976,#C9A24B);color:#0B0B0C} .b-grn{background:var(--grn);color:#fff}
- .b-red{background:var(--red);color:#fff} .b-dark{background:#26262c;color:var(--wh);border:1px solid #33333a}
- .st{text-align:center;padding:22px 14px;border-radius:12px;background:#0d0d10;font-size:16px;margin-top:6px}
- .st .em{font-size:34px;display:block;margin-bottom:8px}
- .big{font-size:44px;font-weight:800;color:var(--gold);line-height:1}
- .muted{color:var(--gr);font-size:12px} .row{display:flex;gap:10px} .row>*{flex:1}
- .badge{display:inline-flex;align-items:center;gap:6px;background:#0d0d10;border:1px solid #2a2a30;padding:7px 12px;border-radius:10px;font-size:13px;margin:4px 4px 0 0}
- .steps{display:flex;justify-content:space-between;margin:6px 0 14px}
- .dot{width:24px;height:24px;border-radius:50%;background:#26262c;color:var(--gr);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
- .dot.on{background:var(--gold);color:#0B0B0C} .dot.done{background:var(--grn);color:#fff}
- .line{flex:1;height:2px;background:#26262c;margin:11px 2px 0}
- .dcard{border-left:4px solid var(--grn);background:var(--pan2);border-radius:10px;padding:14px;margin-top:12px}
- .photo{height:120px;border-radius:10px;background:repeating-linear-gradient(45deg,#1a1a20,#1a1a20 10px,#15151a 10px,#15151a 20px);display:flex;align-items:center;justify-content:center;color:var(--gr);font-size:13px;margin-top:10px}
- a{color:var(--gold);text-decoration:none} .link-btn{display:block;margin-top:10px}
- .modebox{font-size:12px;padding:10px;border-radius:8px;margin-top:8px}
- .footer{text-align:center;color:#555;font-size:11px;margin-top:20px;letter-spacing:2px}
- @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
- @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(111,160,122,.5)}50%{box-shadow:0 0 30px 6px rgba(111,160,122,.55)}}
+ .body{padding:20px}
+ .lbl{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gr);margin:16px 4px 8px;font-weight:600}
+ .card{background:linear-gradient(160deg,#191920,#141418);border:1px solid #26262c;border-radius:20px;padding:22px;margin-bottom:16px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+ .gold{border-color:rgba(201,162,75,.5)}
+ input,select{width:100%;padding:15px;border-radius:12px;border:1px solid #2e2e36;background:#0c0c10;color:var(--wh);font-size:15px;font-family:inherit}
+ input:focus,select:focus{outline:none;border-color:var(--gold)}
+ button{width:100%;padding:16px;border:none;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer;margin-top:14px;transition:.15s;font-family:inherit}
+ button:active{transform:scale(.97)}
+ .b-gold{background:linear-gradient(135deg,var(--goldl),var(--gold));color:#0B0B0C;box-shadow:0 8px 24px rgba(201,162,75,.25)}
+ .b-grn{background:linear-gradient(135deg,#7FB98A,var(--grn));color:#04120a;box-shadow:0 8px 24px rgba(111,160,122,.3)}
+ .b-red{background:#26262c;color:#e88;border:1px solid #402424} .b-dark{background:#1e1e24;color:var(--wh);border:1px solid #2e2e36}
+ .hero{text-align:center;padding:26px 14px 18px}
+ .hero .em{font-size:60px;filter:drop-shadow(0 6px 20px rgba(201,162,75,.35))}
+ .hero .t{font-size:19px;font-weight:700;margin-top:12px} .hero .s{font-size:13px;color:var(--gr);margin-top:6px}
+ .st{text-align:center;padding:30px 16px;border-radius:16px;background:#0c0c10;font-size:16px;border:1px solid #1e1e24}
+ .st .em{font-size:44px;display:block;margin-bottom:12px}
+ .big{font-size:52px;font-weight:800;color:var(--gold);line-height:1;letter-spacing:-1px}
+ .muted{color:var(--gr);font-size:12.5px} .row{display:flex;gap:12px} .row>*{flex:1}
+ .badge{display:inline-flex;align-items:center;gap:6px;background:#0c0c10;border:1px solid #2a2a30;padding:9px 14px;border-radius:12px;font-size:13px;margin:5px 5px 0 0;font-weight:600}
+ .steps{display:flex;justify-content:space-between;align-items:center;margin:4px 0 20px;padding:0 6px}
+ .dot{width:30px;height:30px;border-radius:50%;background:#1e1e24;color:var(--gr);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;border:2px solid #2a2a30;transition:.3s}
+ .dot.on{background:var(--gold);color:#0B0B0C;border-color:var(--gold);box-shadow:0 0 16px rgba(201,162,75,.5);transform:scale(1.12)}
+ .dot.done{background:var(--grn);color:#04120a;border-color:var(--grn)}
+ .line{flex:1;height:3px;background:#1e1e24;margin:0 4px;border-radius:2px}
+ .dcard{background:linear-gradient(160deg,#14211a,#0f1712);border:1px solid rgba(111,160,122,.4);border-left:4px solid var(--grn);border-radius:16px;padding:20px}
+ .photo{height:130px;border-radius:14px;background:linear-gradient(135deg,#1a1a22,#12121a);border:1px dashed #33333a;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--gr);font-size:13px;margin-top:14px;gap:6px}
+ .modebox{font-size:12.5px;padding:13px 15px;border-radius:12px;margin-top:12px;line-height:1.5}
+ .foot{text-align:center;color:#444;font-size:10px;margin-top:26px;letter-spacing:2px}
+ a{color:var(--gold);text-decoration:none} .link-btn{display:block}
+ #reader{border-radius:16px;overflow:hidden;border:2px solid var(--gold)}
+ @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+ @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(111,160,122,.5)}50%{box-shadow:0 0 34px 8px rgba(111,160,122,.5)}}
+ @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+ @keyframes slideup{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
  .blink{animation:blink 1s infinite} .active{animation:glow 1.4s infinite;border-color:var(--grn)!important}
- .notif{background:#12261a;border:1px solid var(--grn);border-radius:12px;padding:16px;text-align:center;animation:glow 1.4s infinite}
+ .pulse{animation:pulse 1.5s infinite} .anim{animation:slideup .4s ease}
+ .notif{background:linear-gradient(160deg,#14211a,#0f1712);border:1px solid var(--grn);border-radius:18px;padding:22px;text-align:center;animation:glow 1.4s infinite}
+ .ring{width:96px;height:96px;border-radius:50%;border:3px solid #1e1e24;border-top-color:var(--gold);margin:0 auto 8px;animation:spin 1s linear infinite}
+ @keyframes spin{to{transform:rotate(360deg)}}
 </style>"""
 
 def shell(role, body, js=""):
-    return f"""{CSS}<div class='wrap'>
-    <div class='hdr'><div><div class='logo'>WALLAET</div><div class='role'>{role}</div></div><span id='pill' class='pill'></span></div>
-    {body}<div class='footer'>SECURED DELIVERY RECEPTION</div></div>
+    return f"""{CSS}<div class='phone'>
+    <div class='nav'><div class='l'><span class='dotL'></span><div><div class='logo'>WALLAET</div><div class='role'>{role}</div></div></div><span id='pill' class='pill'></span></div>
+    <div class='body'>{body}<div class='foot'>SECURED DELIVERY RECEPTION</div></div></div>
     <script>
     async function _mode(){{try{{let s=await(await fetch('/state')).json();let p=document.getElementById('pill');
       if(p){{if(s.status=='idle'){{p.className='pill';p.textContent='';}}else{{p.className='pill '+(s.mode=='mvp'?'p-mvp':'p-flex');p.textContent=(s.mode=='mvp'?'MVP':'FLEX');}}}}}}catch(e){{}}}}
@@ -85,19 +102,15 @@ def demo():
 @app.route("/courier")
 def courier():
     body="""
-    <div id='s0' class='card gold' style='text-align:center'>
-      <div class='lbl'>Step 1 · At the address</div>
-      <div style='font-size:60px;margin:12px 0'>📍</div>
-      <div class='muted' style='margin-bottom:6px'>You've reached the delivery address. Tap to notify the customer.</div>
+    <div id='s0' class='card gold anim' style='text-align:center'>
+      <div class='hero'><div class='em pulse'>📍</div><div class='t'>At the delivery address</div><div class='s'>Tap when you reach the customer's door</div></div>
       <button class='b-gold' onclick='reached()'>📍  Reached location</button>
     </div>
-    <div id='s1' class='card gold' style='display:none;text-align:center'>
-      <div class='lbl'>Step 2 · Find the box</div>
-      <div id='qricon' style='font-size:56px;margin:12px 0'>🔳</div>
-      <div id='reader' style='width:100%;border-radius:12px;overflow:hidden;display:none'></div>
-      <div class='muted' style='margin:8px 0 6px' id='scanhint'>Scan the Wallaet QR sticker on the box.</div>
+    <div id='s1' class='card gold anim' style='display:none;text-align:center'>
+      <div class='hero'><div id='qricon' class='em'>🔳</div><div class='t'>Find the box</div><div class='s' id='scanhint'>Scan the Wallaet QR sticker on the box</div></div>
+      <div id='reader' style='width:100%;display:none;margin-bottom:10px'></div>
       <button class='b-gold' onclick='scan()'>📷  Scan box QR</button>
-      <button class='b-dark' onclick='manualScan()' style='margin-top:8px'>Enter code manually</button>
+      <button class='b-dark' onclick='manualScan()'>Enter code manually</button>
     </div>
     <div id='s2' class='card gold' style='display:none'>
       <div class='st' style='margin-bottom:12px'>✅ Box: <b style='color:var(--gold)'>W-304</b> · <span class='muted'>Flat 304</span></div>
@@ -155,14 +168,14 @@ def courier():
 def owner():
     body="<div class='card'><div id='c'></div></div>"
     js="""async function tick(){let s=await(await fetch('/state')).json();let c=document.getElementById('c');
-      if(s.status=='idle')c.innerHTML="<div class='st'><span class='em'>🏠</span>Waiting for a delivery…</div>";
+      if(s.status=='idle')c.innerHTML="<div class='st'><span class='em'>🏠</span><b>All quiet</b><br><span class='muted'>Waiting for a delivery…</span></div>";
       else if(s.status=='reached')c.innerHTML="<div class='notif'><div style='font-size:40px'>📍🔔</div><b style='font-size:18px;color:var(--grn)'>Courier reached your address</b><br><span class='blink' style='color:var(--grn);font-weight:700'>● WALLAET ACTIVE</span><br><span class='muted'>Get ready — a delivery is starting</span></div>";
       else if(s.status=='scanned')c.innerHTML="<div class='st'><span class='em'>🔳</span><b>Courier at your box</b><br><span class='muted'>W-304 · identifying delivery…</span></div>";
       else if(s.status=='requested'){
-        if(s.mode=='flex')c.innerHTML="<div class='st'><span class='em'>🔎</span><b>"+s.platform+" delivery incoming</b><br><span class='muted'>Verified by "+s.platform+" — no action needed</span></div>";
-        else c.innerHTML="<div class='st'><span class='em'>🔔</span><b>Approve this delivery?</b></div><div style='margin-top:10px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><button class='b-grn' onclick='ok()'>APPROVE DELIVERY</button>";}
-      else if(s.status=='approved'||s.status=='unlocked')c.innerHTML="<div class='st'><span class='em'>✅</span>Approved — delivery in progress…</div>";
-      else if(s.status=='delivered')c.innerHTML="<div class='dcard'><b style='color:var(--grn)'>📦 DELIVERED ✓</b><div style='margin-top:8px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><div style='margin-top:12px'><span class='muted'>Weight captured</span><div class='big'>"+s.weight+" <span style='font-size:18px'>g</span></div></div>"+(s.photo?"<div class='photo'>📸 Delivery photo captured</div>":"")+"</div>";}
+        if(s.mode=='flex')c.innerHTML="<div class='st anim'><div class='ring'></div><b>"+s.platform+" delivery incoming</b><br><span class='muted'>Auto-verified by "+s.platform+" — no action needed</span></div>";
+        else c.innerHTML="<div class='card anim' style='margin:0;padding:20px'><div style='text-align:center'><span style='font-size:40px'>🔔</span><br><b style='font-size:18px'>Approve this delivery?</b></div><div style='margin-top:14px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><button class='b-grn' onclick='ok()'>✓  APPROVE DELIVERY</button></div>";}
+      else if(s.status=='approved'||s.status=='unlocked')c.innerHTML="<div class='st anim'><span class='em'>🔓</span><b>Approved</b><br><span class='muted'>Delivery in progress…</span></div>";
+      else if(s.status=='delivered')c.innerHTML="<div class='dcard anim'><div style='display:flex;justify-content:space-between;align-items:center'><b style='color:var(--grn);font-size:16px'>📦 DELIVERED</b><span style='color:var(--grn);font-size:22px'>✓</span></div><div style='margin-top:12px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><div style='margin-top:16px'><span class='muted'>WEIGHT CAPTURED</span><div class='big'>"+s.weight+" <span style='font-size:20px;color:var(--gr)'>g</span></div></div>"+(s.photo?"<div class='photo'><span style='font-size:30px'>📸</span>Delivery photo captured</div>":"")+"</div>";}
     async function ok(){await fetch('/owner/approve',{method:'POST'});}
     tick();setInterval(tick,1000);"""
     return shell("Owner · Flat 304", body, js)
@@ -175,13 +188,13 @@ def box():
       <button class='b-gold' onclick='drop()'>📦  Parcel dropped (weight + photo)</button>
       <div class='muted' style='margin-top:10px'>Flap unlocks automatically once a delivery is verified. Then tap above to simulate the parcel landing.</div></div>"""
     js="""async function tick(){let s=await(await fetch('/state')).json();let el=document.getElementById('s');if(s.status!='reached')el.className='st';
-      if(s.status=='idle')el.innerHTML="<span class='em'>😴</span>Standby — locked";
+      if(s.status=='idle')el.innerHTML="<span class='em'>🔒</span><b>STANDBY</b><br><span class='muted'>Box locked · monitoring</span>";
       else if(s.status=='reached'){el.className='st active';el.innerHTML="<span class='em blink'>🟢</span><b class='blink' style='color:var(--grn)'>WALLAET ACTIVE</b><br><span class='muted'>Light blinking · ready for courier</span>";}
-      else if(s.status=='scanned')el.innerHTML="<span class='em'>🔦</span>Scanned — beep + light ON";
-      else if(s.status=='requested')el.innerHTML="<span class='em'>⏳</span>Verification in progress…";
+      else if(s.status=='scanned')el.innerHTML="<span class='em'>🔦</span><b>IDENTIFIED · W-304</b><br><span class='muted'>Beep + light ON</span>";
+      else if(s.status=='requested')el.innerHTML="<div class='ring'></div><b>VERIFYING…</b>";
       else if(s.status=='approved'){el.innerHTML="<span class='em'>🔓</span>UNLOCK received — opening flap";await fetch('/box/unlocked',{method:'POST'});}
-      else if(s.status=='unlocked')el.innerHTML="<span class='em'>🔓</span>FLAP OPEN — waiting for drop";
-      else if(s.status=='delivered')el.innerHTML="<span class='em'>✅</span>Delivered — locked again";}
+      else if(s.status=='unlocked')el.innerHTML="<span class='em pulse'>🔓</span><b style='color:var(--grn)'>FLAP OPEN</b><br><span class='muted'>Waiting for parcel drop</span>";
+      else if(s.status=='delivered')el.innerHTML="<span class='em'>✅</span><b style='color:var(--grn)'>DELIVERED</b><br><span class='muted'>640g · photo saved · locked</span>";}
     async function drop(){await fetch('/box/delivered',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({weight:640,photo:true})});}
     tick();setInterval(tick,1000);"""
     return shell("Box simulator", body, js)
