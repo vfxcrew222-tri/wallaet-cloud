@@ -97,7 +97,12 @@ def courier():
       <div class='st' style='margin-bottom:12px'>✅ Box: <b style='color:var(--gold)'>W-304</b> · <span class='muted'>Flat 304</span></div>
       <div class='lbl'>Step 3 · Platform</div>
       <select id='plat' onchange='modeHint()'>
-        <option>Amazon</option><option>Flipkart</option><option>Meesho</option><option>Ajio</option><option>JioMart</option><option>Blinkit</option>
+        <option value='Amazon'>Amazon — Integrated (FLEX)</option>
+        <option value='Flipkart'>Flipkart — Integrated (FLEX)</option>
+        <option value='Meesho'>Meesho — Standard (MVP)</option>
+        <option value='Ajio'>Ajio — Standard (MVP)</option>
+        <option value='JioMart'>JioMart — Standard (MVP)</option>
+        <option value='Blinkit'>Blinkit — Standard (MVP)</option>
       </select>
       <div id='mh' class='modebox'></div>
       <div class='lbl'>Delivery Partner ID (required)</div>
