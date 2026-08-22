@@ -62,6 +62,10 @@ def shell(role, body, js=""):
 
 @app.route("/")
 def home():
+    return LANDING
+
+@app.route("/demo")
+def demo():
     body="""
     <div class='card gold'>
       <div class='lbl'>Open on different phones / networks</div>
@@ -213,6 +217,108 @@ def bdel():
     return jsonify(ok=True)
 @app.route("/reset")
 def reset(): S.update(fresh()); return jsonify(ok=True)
+
+LANDING = """
+<!doctype html><html><head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>Wallaet — secured delivery reception</title>
+<style>
+ :root{--gold:#C9A24B;--goldl:#E6C976;--bk:#0B0B0C;--pan:#16161A;--pan2:#1E1E24;--wh:#F4F1EA;--gr:#9A968C;--grn:#6FA07A}
+ *{box-sizing:border-box;margin:0;padding:0}
+ body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bk);color:var(--wh);line-height:1.5}
+ .bar{position:sticky;top:0;z-index:9;display:flex;justify-content:space-between;align-items:center;padding:16px 22px;background:rgba(11,11,12,.85);backdrop-filter:blur(10px);border-bottom:1px solid #1e1e24}
+ .logo{font-size:20px;font-weight:800;letter-spacing:4px;color:var(--gold)}
+ .bar a{color:var(--bk);background:var(--gold);text-decoration:none;padding:9px 18px;border-radius:10px;font-weight:800;font-size:14px}
+ .hero{text-align:center;padding:90px 22px 70px;background:radial-gradient(circle at 50% 0%,#1c1c24,#0B0B0C 70%);position:relative;overflow:hidden}
+ .hero:before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+ .tag{display:inline-block;border:1px solid var(--gold);color:var(--goldl);padding:6px 16px;border-radius:20px;font-size:12px;letter-spacing:2px;margin-bottom:26px}
+ h1{font-size:56px;font-weight:800;letter-spacing:3px;color:var(--gold);margin-bottom:18px}
+ .hero p{font-size:20px;color:var(--wh);max-width:620px;margin:0 auto 12px}
+ .hero .sub{font-size:15px;color:var(--gr);max-width:600px;margin:0 auto 34px}
+ .cta{display:inline-block;background:linear-gradient(135deg,var(--goldl),var(--gold));color:var(--bk);text-decoration:none;padding:16px 40px;border-radius:12px;font-weight:800;font-size:17px;box-shadow:0 10px 40px rgba(201,162,75,.3)}
+ .cta.dark{background:#1e1e24;color:var(--wh);border:1px solid #33333a;box-shadow:none;margin-left:10px}
+ .wrap{max-width:1000px;margin:auto;padding:0 22px}
+ .sec{padding:64px 0} .sec h2{font-size:32px;color:var(--wh);text-align:center;margin-bottom:8px}
+ .sec .lead{text-align:center;color:var(--gr);max-width:640px;margin:0 auto 44px;font-size:15px}
+ .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
+ .card{background:var(--pan);border:1px solid #26262c;border-radius:16px;padding:26px}
+ .card .em{font-size:30px;margin-bottom:12px}
+ .card h3{color:var(--gold);font-size:18px;margin-bottom:8px} .card p{color:var(--wh);font-size:13.5px}
+ .steps{counter-reset:s} .step{display:flex;gap:18px;align-items:flex-start;padding:16px 0;border-bottom:1px solid #1e1e24}
+ .step .n{flex:0 0 42px;height:42px;border-radius:50%;background:var(--gold);color:var(--bk);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px}
+ .step h4{color:var(--wh);font-size:17px;margin-bottom:3px} .step p{color:var(--gr);font-size:14px}
+ .demo{background:linear-gradient(135deg,#16161a,#0f0f12);border:1px solid var(--gold);border-radius:20px;padding:44px 30px;text-align:center}
+ .demo h2{color:var(--gold)} .demo p{color:var(--gr);margin-bottom:28px}
+ .dbtns{display:flex;flex-wrap:wrap;gap:14px;justify-content:center}
+ .dbtn{background:var(--bk);border:1px solid #33333a;border-radius:14px;padding:20px 26px;text-decoration:none;color:var(--wh);min-width:180px;transition:.15s}
+ .dbtn:hover{border-color:var(--gold);transform:translateY(-2px)}
+ .dbtn .e{font-size:32px;display:block;margin-bottom:8px} .dbtn b{color:var(--gold);display:block;font-size:15px} .dbtn span{font-size:12px;color:var(--gr)}
+ .stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:18px;text-align:center}
+ .stat .b{font-size:38px;font-weight:800;color:var(--gold)} .stat .l{font-size:13px;color:var(--gr)}
+ .foot{text-align:center;padding:40px 22px;color:#555;font-size:12px;letter-spacing:2px;border-top:1px solid #1e1e24}
+ @media(max-width:600px){h1{font-size:38px}.hero p{font-size:17px}.cta.dark{margin-left:0;margin-top:10px}}
+</style></head><body>
+<div class='bar'><div class='logo'>WALLAET</div><a href='/demo'>Live demo →</a></div>
+
+<div class='hero'>
+  <div class='tag'>SECURED DELIVERY RECEPTION</div>
+  <h1>WALLAET</h1>
+  <p>Your parcel is safe — until it reaches you.</p>
+  <p class='sub'>A smart box at your door that opens only for a verified delivery, records proof, and locks itself again. The reception layer every platform can plug into.</p>
+  <a class='cta' href='/demo'>Try the live demo</a>
+  <a class='cta dark' href='#how'>See how it works</a>
+</div>
+
+<div class='wrap'>
+  <div class='sec'>
+    <h2>The last step is broken</h2>
+    <p class='lead'>Online orders are tracked every step — until the last one. Then it's dropped at the door with no lock, no check, no proof.</p>
+    <div class='grid'>
+      <div class='card'><div class='em'>🚪</div><h3>Stolen from the door</h3><p>Parcels left outside get taken. It happens every day, everywhere.</p></div>
+      <div class='card'><div class='em'>🔁</div><h3>Failed delivery</h3><p>Nobody home → courier takes it back → comes again tomorrow. Wasted trip and cost.</p></div>
+      <div class='card'><div class='em'>🔑</div><h3>The OTP problem</h3><p>You're told never to share your code — yet couriers still ask by phone.</p></div>
+      <div class='card'><div class='em'>❓</div><h3>No proof</h3><p>Was it delivered? Who took it? Disputes with zero evidence.</p></div>
+    </div>
+  </div>
+
+  <div class='sec' id='how'>
+    <h2>How Wallaet works</h2>
+    <p class='lead'>Five simple steps — from the courier reaching your door to a locked, proof-recorded delivery.</p>
+    <div class='steps'>
+      <div class='step'><div class='n'>1</div><div><h4>Courier reaches</h4><p>The courier taps “reached” in their app. You're notified and the box wakes up — light on, ready.</p></div></div>
+      <div class='step'><div class='n'>2</div><div><h4>Scans the box</h4><p>The courier scans the Wallaet QR on your box — it's identified as yours.</p></div></div>
+      <div class='step'><div class='n'>3</div><div><h4>Verified</h4><p>Amazon &amp; Flipkart auto-verify (no action needed). Others: you approve with one tap.</p></div></div>
+      <div class='step'><div class='n'>4</div><div><h4>Opens &amp; records</h4><p>The box opens only now. Parcel drops in; weight and a photo are captured as proof.</p></div></div>
+      <div class='step'><div class='n'>5</div><div><h4>Locks itself</h4><p>The flap closes and locks. Secured, and ready for the next one.</p></div></div>
+    </div>
+  </div>
+
+  <div class='sec'>
+    <h2>The cost it kills</h2>
+    <p class='lead'>Failed deliveries are a silent, massive drain on Indian e-commerce.</p>
+    <div class='stat'>
+      <div><div class='b'>23%</div><div class='l'>deliveries fail the first time</div></div>
+      <div><div class='b'>₹180-400</div><div class='l'>lost per failed delivery</div></div>
+      <div><div class='b'>₹8,000 Cr</div><div class='l'>lost every year in India</div></div>
+      <div><div class='b'>₹50,000 Cr</div><div class='l'>home-delivery market</div></div>
+    </div>
+  </div>
+
+  <div class='sec'>
+    <div class='demo'>
+      <h2>See it live</h2>
+      <p>Open these on separate phones — scan a real QR, watch the box unlock, see the proof.</p>
+      <div class='dbtns'>
+        <a class='dbtn' href='/courier'><span class='e'>📦</span><b>Courier</b><span>reach · scan · deliver</span></a>
+        <a class='dbtn' href='/owner'><span class='e'>🏠</span><b>Owner</b><span>alerts · approve · proof</span></a>
+        <a class='dbtn' href='/box'><span class='e'>📡</span><b>Box</b><span>the live box (demo)</span></a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class='foot'>WALLAET · Secured delivery reception · Patents filed · Nitin Jain (Ni3)</div>
+</body></html>"""
 
 if __name__=="__main__":
     app.run(host="0.0.0.0",port=int(os.environ.get("PORT",5000)))
