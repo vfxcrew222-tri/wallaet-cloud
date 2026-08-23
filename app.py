@@ -7,7 +7,8 @@ INTEGRATED = ["Amazon","Flipkart"]   # these = FLEX (auto). Others = MVP (owner 
 
 def fresh():
     return {"mode":"mvp","status":"idle","partner_id":"","platform":"",
-            "photo":False,"weight":0,"unit":"W-304","flat":"Flat 304","last":time.time()}
+            "photo":False,"weight":0,"unit":"W-304","flat":"Flat 304",
+            "parcels":[], "total":0, "last":time.time()}
 S = fresh()
 def setst(x): S["status"]=x; S["last"]=time.time()
 
@@ -184,23 +185,28 @@ def owner():
     function ringHard(){bell();if(navigator.vibrate)navigator.vibrate([400,150,400]);}
     function startRing(){if(ringTimer)return;ringHard();ringTimer=setInterval(ringHard,1600);}
     function stopRing(){if(ringTimer){clearInterval(ringTimer);ringTimer=null;}}
+    function plist(s){if(!s.parcels||!s.parcels.length)return"";let rows=s.parcels.map((p,i)=>"<div style='display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1e1e24'><span>📦 "+(i+1)+" · "+p.platform+"</span><span style='color:var(--gold)'>"+p.w+" g</span></div>").join("");
+      return "<div class='card'><div style='display:flex;justify-content:space-between;align-items:center'><b>📥 Box contents</b><span class='badge'>"+s.parcels.length+" parcel"+(s.parcels.length>1?"s":"")+"</span></div><div style='margin-top:10px'>"+rows+"</div><div style='display:flex;justify-content:space-between;margin-top:14px'><span class='muted'>TOTAL WEIGHT</span><b class='big' style='font-size:30px'>"+s.total+" <span style='font-size:15px;color:var(--gr)'>g</span></b></div><button class='b-red' onclick='empty()'>🔓 Empty box (I collected)</button></div>";}
     function render(s){let c=document.getElementById('c');
-      if(s.status=='idle')c.innerHTML="<div class='card'><div class='st'><span class='em'>🏠</span><b>All quiet</b><br><span class='muted'>Waiting for a delivery…</span></div></div>";
+      if(s.status=='idle'){
+        if(s.parcels&&s.parcels.length)c.innerHTML="<div class='card'><div class='st'><span class='em'>✅</span><b>All delivered & secured</b><br><span class='muted'>Waiting for next courier…</span></div></div>"+plist(s);
+        else c.innerHTML="<div class='card'><div class='st'><span class='em'>🏠</span><b>All quiet</b><br><span class='muted'>Waiting for a delivery…</span></div></div>";}
       else if(s.status=='reached')c.innerHTML="<div class='card'><div class='notif'><div style='font-size:40px'>📍🔔</div><b style='font-size:18px;color:var(--grn)'>Courier reached your address</b><br><span class='blink' style='color:var(--grn);font-weight:700'>● WALLAET ACTIVE</span><br><span class='muted'>Get ready — a delivery is starting</span></div></div>";
       else if(s.status=='scanned')c.innerHTML="<div class='card'><div class='st'><span class='em'>🔳</span><b>Courier at your box</b><br><span class='muted'>W-304 · identifying delivery…</span></div></div>";
       else if(s.status=='requested'){
         if(s.mode=='flex')c.innerHTML="<div class='card'><div class='st'><div class='ring'></div><b>"+s.platform+" delivery incoming</b><br><span class='muted'>Auto-verified by "+s.platform+" — no action needed</span></div></div>";
         else c.innerHTML="<div class='card' style='border:1px solid var(--gold);animation:glow 1s infinite'><div style='text-align:center'><span class='shake' style='font-size:56px;display:inline-block'>🔔</span><br><b style='font-size:20px;color:var(--gold)'>Delivery request!</b><br><span class='muted'>Approve to open the box</span></div><div style='margin-top:16px;text-align:center'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><button class='b-grn' onclick='ok()'>✓  APPROVE DELIVERY</button><button class='b-dark' onclick='ringHard()'>🔔 Ring again</button></div>";}
       else if(s.status=='approved'||s.status=='unlocked')c.innerHTML="<div class='card'><div class='st'><span class='em'>🔓</span><b>Approved</b><br><span class='muted'>Delivery in progress…</span></div></div>";
-      else if(s.status=='delivered')c.innerHTML="<div class='card'><div class='dcard'><div style='display:flex;justify-content:space-between;align-items:center'><b style='color:var(--grn);font-size:16px'>📦 DELIVERED</b><span style='color:var(--grn);font-size:22px'>✓</span></div><div style='margin-top:12px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><div style='margin-top:16px'><span class='muted'>WEIGHT CAPTURED</span><div class='big'>"+s.weight+" <span style='font-size:20px;color:var(--gr)'>g</span></div></div>"+(s.photo?"<div class='photo'><span style='font-size:30px'>📸</span>Delivery photo captured</div>":"")+"<div class='muted' style='text-align:center;margin-top:14px'>Resetting for next delivery…</div></div></div>";}
+      else if(s.status=='delivered')c.innerHTML="<div class='card'><div class='dcard'><div style='display:flex;justify-content:space-between;align-items:center'><b style='color:var(--grn);font-size:16px'>📦 DELIVERED</b><span style='color:var(--grn);font-size:22px'>✓</span></div><div style='margin-top:12px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><div style='margin-top:16px'><span class='muted'>THIS PARCEL</span><div class='big'>"+s.weight+" <span style='font-size:20px;color:var(--gr)'>g</span></div></div>"+(s.photo?"<div class='photo'><span style='font-size:30px'>📸</span>Delivery photo captured</div>":"")+"<div style='display:flex;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid #1e1e24'><span class='muted'>Box now holds "+s.parcels.length+" parcel"+(s.parcels.length>1?"s":"")+"</span><b style='color:var(--gold)'>total "+s.total+" g</b></div></div></div>";}
     async function tick(){let s=await(await fetch('/state')).json();
       if(s.status===last)return;               // no change -> no redraw (kills flicker)
       stopRing();                              // any change stops the ring loop
       if(s.status=='reached'){bell();if(navigator.vibrate)navigator.vibrate(250);}
       if(s.status=='requested'&&s.mode=='mvp')startRing();   // ring until approve
-      if(s.status=='delivered'){success();setTimeout(()=>{fetch('/reset');},6000);}  // happy tune + auto reset
+      if(s.status=='delivered'){success();setTimeout(()=>{fetch('/next');},5000);}  // happy tune, ready for next courier (parcels kept)
       last=s.status;render(s);}
     async function ok(){stopRing();await fetch('/owner/approve',{method:'POST'});}
+    async function empty(){await fetch('/reset');last=null;}
     tick();setInterval(tick,1000);"""
     return shell("Owner · Flat 304", body, js)
 
@@ -208,18 +214,26 @@ def owner():
 def box():
     body="""
     <div class='card gold'><div id='s' class='st'>&hellip;</div></div>
-    <div class='card'><div class='lbl'>Simulate the box hardware</div>
-      <button class='b-gold' onclick='drop()'>📦  Parcel dropped (weight + photo)</button>
-      <div class='muted' style='margin-top:10px'>Flap unlocks automatically once a delivery is verified. Then tap above to simulate the parcel landing.</div></div>"""
+    <div class='card'><div class='lbl'>Box contents</div>
+      <div style='display:flex;justify-content:space-between;align-items:center'><span class='muted'>Parcels inside</span><b id='cnt' style='color:var(--gold)'>0</b></div>
+      <div style='display:flex;justify-content:space-between;align-items:center;margin-top:6px'><span class='muted'>Total weight</span><b id='tot' class='big' style='font-size:30px'>0 <span style='font-size:14px;color:var(--gr)'>g</span></b></div>
+    </div>
+    <div class='card'><div class='lbl'>Simulate a parcel drop</div>
+      <button class='b-gold' onclick='drop(300)'>📦  Small parcel · 300 g</button>
+      <button class='b-gold' onclick='drop(700)'>📦  Medium parcel · 700 g</button>
+      <button class='b-gold' onclick='drop(1400)'>📦  Large parcel · 1400 g</button>
+      <div class='muted' style='margin-top:10px'>Flap unlocks automatically once verified. Pick a size to simulate the parcel landing — weight adds to the box total.</div></div>"""
     js="""async function tick(){let s=await(await fetch('/state')).json();let el=document.getElementById('s');if(s.status!='reached')el.className='st';
+      document.getElementById('cnt').textContent=s.parcels?s.parcels.length:0;
+      document.getElementById('tot').innerHTML=(s.total||0)+" <span style='font-size:14px;color:var(--gr)'>g</span>";
       if(s.status=='idle')el.innerHTML="<span class='em'>🔒</span><b>STANDBY</b><br><span class='muted'>Box locked · monitoring</span>";
       else if(s.status=='reached'){el.className='st active';el.innerHTML="<span class='em blink'>🟢</span><b class='blink' style='color:var(--grn)'>WALLAET ACTIVE</b><br><span class='muted'>Light blinking · ready for courier</span>";}
       else if(s.status=='scanned')el.innerHTML="<span class='em'>🔦</span><b>IDENTIFIED · W-304</b><br><span class='muted'>Beep + light ON</span>";
       else if(s.status=='requested')el.innerHTML="<div class='ring'></div><b>VERIFYING…</b>";
       else if(s.status=='approved'){el.innerHTML="<span class='em'>🔓</span>UNLOCK received — opening flap";await fetch('/box/unlocked',{method:'POST'});}
       else if(s.status=='unlocked')el.innerHTML="<span class='em pulse'>🔓</span><b style='color:var(--grn)'>FLAP OPEN</b><br><span class='muted'>Waiting for parcel drop</span>";
-      else if(s.status=='delivered')el.innerHTML="<span class='em'>✅</span><b style='color:var(--grn)'>DELIVERED</b><br><span class='muted'>640g · photo saved · locked</span>";}
-    async function drop(){await fetch('/box/delivered',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({weight:640,photo:true})});}
+      else if(s.status=='delivered')el.innerHTML="<span class='em'>✅</span><b style='color:var(--grn)'>DELIVERED</b><br><span class='muted'>"+s.weight+"g added · total "+s.total+"g · locked</span>";}
+    async function drop(w){await fetch('/box/delivered',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({weight:w,photo:true})});}
     tick();setInterval(tick,1000);"""
     return shell("Box simulator", body, js)
 
@@ -250,7 +264,15 @@ def bunl():
     return jsonify(ok=True)
 @app.route("/box/delivered",methods=["POST"])
 def bdel():
-    d=request.get_json() or {}; S["weight"]=d.get("weight",0); S["photo"]=bool(d.get("photo",False)); setst("delivered")
+    d=request.get_json() or {}; w=int(d.get("weight",0)); S["weight"]=w; S["photo"]=bool(d.get("photo",False))
+    S["parcels"].append({"platform":S["platform"],"pid":S["partner_id"],"w":w})
+    S["total"]=sum(p["w"] for p in S["parcels"])
+    setst("delivered")
+    return jsonify(ok=True, total=S["total"], count=len(S["parcels"]))
+@app.route("/next")
+def nxt():
+    # ready for the next courier — keep parcels, clear only the current transaction
+    S["status"]="idle"; S["partner_id"]=""; S["platform"]=""; S["weight"]=0; S["photo"]=False; S["mode"]="mvp"; S["last"]=time.time()
     return jsonify(ok=True)
 @app.route("/reset")
 def reset(): S.update(fresh()); return jsonify(ok=True)
