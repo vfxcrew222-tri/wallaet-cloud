@@ -163,7 +163,7 @@ def courier():
       if(s.status=='requested'){dots(2);el.innerHTML=s.mode=='flex'?"<span class='em'>🔎</span>"+s.platform+" is verifying the order…":"<span class='em'>⏳</span>Waiting for owner approval…";}
       else if(s.status=='approved'){dots(3);el.innerHTML="<span class='em'>✅</span>Verified! Box unlocking…";}
       else if(s.status=='unlocked'){dots(3);el.innerHTML="<span class='em'>🔓</span><b>Flap is OPEN</b><br>Drop the parcel now";}
-      else if(s.status=='delivered'){dots(5);el.innerHTML="<span class='em'>📦</span><b>Delivered!</b><br>Thank you.";clearInterval(poll);}}"""
+      else if(s.status=='delivered'){dots(5);el.innerHTML="<span class='em'>📦</span><b>Delivered!</b><br>Thank you.<br><span class='muted'>Resetting…</span>";clearInterval(poll);setTimeout(()=>location.reload(),7000);}}"""
     return shell("Courier", "<script src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'></script>"+body, js)
 
 @app.route("/owner")
@@ -176,11 +176,14 @@ def owner():
     js="""let last=null;let ac;let soundOn=false;
     function enable(){try{ac=new(window.AudioContext||window.webkitAudioContext)();let o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);g.gain.setValueAtTime(0.15,ac.currentTime);o.frequency.value=880;o.start();o.stop(ac.currentTime+0.15);}catch(e){}
       if(navigator.vibrate)navigator.vibrate(120);soundOn=true;document.getElementById('enable').style.display='none';}
-    function beep(times){if(!soundOn||!ac)return;try{for(let i=0;i<times;i++){let o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);
-        let t=ac.currentTime+i*0.5;o.frequency.setValueAtTime(880,t);o.frequency.setValueAtTime(1320,t+0.12);
-        g.gain.setValueAtTime(0.001,t);g.gain.exponentialRampToValueAtTime(0.5,t+0.03);g.gain.exponentialRampToValueAtTime(0.001,t+0.4);
-        o.start(t);o.stop(t+0.42);}}catch(e){}}
-    function ringHard(){beep(3);if(navigator.vibrate)navigator.vibrate([400,150,400,150,400]);}
+    let ringTimer=null;
+    function tone(seq){if(!soundOn||!ac)return;try{seq.forEach((n)=>{let o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);
+      let t=ac.currentTime+n[2];o.frequency.setValueAtTime(n[0],t);g.gain.setValueAtTime(0.001,t);g.gain.exponentialRampToValueAtTime(0.5,t+0.02);g.gain.exponentialRampToValueAtTime(0.001,t+n[1]);o.start(t);o.stop(t+n[1]+0.03);});}catch(e){}}
+    function bell(){tone([[880,0.14,0],[1320,0.3,0.14]]);}
+    function success(){tone([[660,0.16,0],[880,0.16,0.16],[1320,0.4,0.32]]);}
+    function ringHard(){bell();if(navigator.vibrate)navigator.vibrate([400,150,400]);}
+    function startRing(){if(ringTimer)return;ringHard();ringTimer=setInterval(ringHard,1600);}
+    function stopRing(){if(ringTimer){clearInterval(ringTimer);ringTimer=null;}}
     function render(s){let c=document.getElementById('c');
       if(s.status=='idle')c.innerHTML="<div class='card'><div class='st'><span class='em'>🏠</span><b>All quiet</b><br><span class='muted'>Waiting for a delivery…</span></div></div>";
       else if(s.status=='reached')c.innerHTML="<div class='card'><div class='notif'><div style='font-size:40px'>📍🔔</div><b style='font-size:18px;color:var(--grn)'>Courier reached your address</b><br><span class='blink' style='color:var(--grn);font-weight:700'>● WALLAET ACTIVE</span><br><span class='muted'>Get ready — a delivery is starting</span></div></div>";
@@ -189,14 +192,15 @@ def owner():
         if(s.mode=='flex')c.innerHTML="<div class='card'><div class='st'><div class='ring'></div><b>"+s.platform+" delivery incoming</b><br><span class='muted'>Auto-verified by "+s.platform+" — no action needed</span></div></div>";
         else c.innerHTML="<div class='card' style='border:1px solid var(--gold);animation:glow 1s infinite'><div style='text-align:center'><span class='shake' style='font-size:56px;display:inline-block'>🔔</span><br><b style='font-size:20px;color:var(--gold)'>Delivery request!</b><br><span class='muted'>Approve to open the box</span></div><div style='margin-top:16px;text-align:center'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><button class='b-grn' onclick='ok()'>✓  APPROVE DELIVERY</button><button class='b-dark' onclick='ringHard()'>🔔 Ring again</button></div>";}
       else if(s.status=='approved'||s.status=='unlocked')c.innerHTML="<div class='card'><div class='st'><span class='em'>🔓</span><b>Approved</b><br><span class='muted'>Delivery in progress…</span></div></div>";
-      else if(s.status=='delivered')c.innerHTML="<div class='card'><div class='dcard'><div style='display:flex;justify-content:space-between;align-items:center'><b style='color:var(--grn);font-size:16px'>📦 DELIVERED</b><span style='color:var(--grn);font-size:22px'>✓</span></div><div style='margin-top:12px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><div style='margin-top:16px'><span class='muted'>WEIGHT CAPTURED</span><div class='big'>"+s.weight+" <span style='font-size:20px;color:var(--gr)'>g</span></div></div>"+(s.photo?"<div class='photo'><span style='font-size:30px'>📸</span>Delivery photo captured</div>":"")+"</div></div>";}
+      else if(s.status=='delivered')c.innerHTML="<div class='card'><div class='dcard'><div style='display:flex;justify-content:space-between;align-items:center'><b style='color:var(--grn);font-size:16px'>📦 DELIVERED</b><span style='color:var(--grn);font-size:22px'>✓</span></div><div style='margin-top:12px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><div style='margin-top:16px'><span class='muted'>WEIGHT CAPTURED</span><div class='big'>"+s.weight+" <span style='font-size:20px;color:var(--gr)'>g</span></div></div>"+(s.photo?"<div class='photo'><span style='font-size:30px'>📸</span>Delivery photo captured</div>":"")+"<div class='muted' style='text-align:center;margin-top:14px'>Resetting for next delivery…</div></div></div>";}
     async function tick(){let s=await(await fetch('/state')).json();
       if(s.status===last)return;               // no change -> no redraw (kills flicker)
-      if(s.status=='reached'){beep(1);if(navigator.vibrate)navigator.vibrate(250);}
-      if(s.status=='requested'&&s.mode=='mvp')ringHard();
-      if(s.status=='delivered')beep(1);
+      stopRing();                              // any change stops the ring loop
+      if(s.status=='reached'){bell();if(navigator.vibrate)navigator.vibrate(250);}
+      if(s.status=='requested'&&s.mode=='mvp')startRing();   // ring until approve
+      if(s.status=='delivered'){success();setTimeout(()=>{fetch('/reset');},6000);}  // happy tune + auto reset
       last=s.status;render(s);}
-    async function ok(){await fetch('/owner/approve',{method:'POST'});}
+    async function ok(){stopRing();await fetch('/owner/approve',{method:'POST'});}
     tick();setInterval(tick,1000);"""
     return shell("Owner · Flat 304", body, js)
 
