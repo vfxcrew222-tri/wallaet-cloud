@@ -1,9 +1,12 @@
 from flask import Flask, request, jsonify
 import time, os
+from datetime import datetime
 
 app = Flask(__name__)
 
 INTEGRATED = ["Amazon","Flipkart"]   # these = FLEX (auto). Others = MVP (owner approve)
+CAP_COUNT = 4        # box holds up to 4 parcels
+CAP_WEIGHT = 5000    # or up to 5 kg
 
 def fresh():
     return {"mode":"mvp","status":"idle","partner_id":"","platform":"",
@@ -185,8 +188,9 @@ def owner():
     function ringHard(){bell();if(navigator.vibrate)navigator.vibrate([400,150,400]);}
     function startRing(){if(ringTimer)return;ringHard();ringTimer=setInterval(ringHard,1600);}
     function stopRing(){if(ringTimer){clearInterval(ringTimer);ringTimer=null;}}
-    function plist(s){if(!s.parcels||!s.parcels.length)return"";let rows=s.parcels.map((p,i)=>"<div style='display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1e1e24'><span>📦 "+(i+1)+" · "+p.platform+"</span><span style='color:var(--gold)'>"+p.w+" g</span></div>").join("");
-      return "<div class='card'><div style='display:flex;justify-content:space-between;align-items:center'><b>📥 Box contents</b><span class='badge'>"+s.parcels.length+" parcel"+(s.parcels.length>1?"s":"")+"</span></div><div style='margin-top:10px'>"+rows+"</div><div style='display:flex;justify-content:space-between;margin-top:14px'><span class='muted'>TOTAL WEIGHT</span><b class='big' style='font-size:30px'>"+s.total+" <span style='font-size:15px;color:var(--gr)'>g</span></b></div><button class='b-red' onclick='empty()'>🔓 Empty box (I collected)</button></div>";}
+    function plist(s){if(!s.parcels||!s.parcels.length)return"";let rows=s.parcels.map((p,i)=>"<div style='display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #1e1e24'><span>📦 "+(i+1)+" · "+p.platform+"<br><span class='muted' style='font-size:11px'>🕐 "+(p.t||"")+" · "+p.pid+"</span></span><span style='color:var(--gold)'>"+p.w+" g</span></div>").join("");
+      let full=s.full?"<div class='modebox' style='background:#2a1414;color:#e88;text-align:center;font-weight:700'>⚠️ BOX FULL — "+s.parcels.length+"/"+s.cap+" parcels. Please empty it.</div>":"";
+      return "<div class='card'><div style='display:flex;justify-content:space-between;align-items:center'><b>📥 Box contents</b><span class='badge'>"+s.parcels.length+"/"+s.cap+" parcels</span></div>"+full+"<div style='margin-top:10px'>"+rows+"</div><div style='display:flex;justify-content:space-between;margin-top:14px'><span class='muted'>TOTAL WEIGHT</span><b class='big' style='font-size:30px'>"+s.total+" <span style='font-size:15px;color:var(--gr)'>g</span></b></div><button class='b-red' onclick='empty()'>🔓 Empty box (I collected)</button></div>";}
     function render(s){let c=document.getElementById('c');
       if(s.status=='idle'){
         if(s.parcels&&s.parcels.length)c.innerHTML="<div class='card'><div class='st'><span class='em'>✅</span><b>All delivered & secured</b><br><span class='muted'>Waiting for next courier…</span></div></div>"+plist(s);
@@ -199,14 +203,18 @@ def owner():
       else if(s.status=='approved'||s.status=='unlocked')c.innerHTML="<div class='card'><div class='st'><span class='em'>🔓</span><b>Approved</b><br><span class='muted'>Delivery in progress…</span></div></div>";
       else if(s.status=='delivered')c.innerHTML="<div class='card'><div class='dcard'><div style='display:flex;justify-content:space-between;align-items:center'><b style='color:var(--grn);font-size:16px'>📦 DELIVERED</b><span style='color:var(--grn);font-size:22px'>✓</span></div><div style='margin-top:12px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><div style='margin-top:16px'><span class='muted'>THIS PARCEL</span><div class='big'>"+s.weight+" <span style='font-size:20px;color:var(--gr)'>g</span></div></div>"+(s.photo?"<div class='photo'><span style='font-size:30px'>📸</span>Delivery photo captured</div>":"")+"<div style='display:flex;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid #1e1e24'><span class='muted'>Box now holds "+s.parcels.length+" parcel"+(s.parcels.length>1?"s":"")+"</span><b style='color:var(--gold)'>total "+s.total+" g</b></div></div></div>";}
     async function tick(){let s=await(await fetch('/state')).json();
-      if(s.status===last)return;               // no change -> no redraw (kills flicker)
+      let key=s.status+'|'+s.partner_id+'|'+(s.parcels?s.parcels.length:0);
+      if(key===last){return;}                  // nothing changed -> no redraw (kills flicker)
+      let statusChanged = !last || last.split('|')[0]!==s.status;
       stopRing();                              // any change stops the ring loop
-      if(s.status=='reached'){bell();if(navigator.vibrate)navigator.vibrate(250);}
-      if(s.status=='requested'&&s.mode=='mvp')startRing();   // ring until approve
-      if(s.status=='delivered'){success();setTimeout(()=>{fetch('/next');},5000);}  // happy tune, ready for next courier (parcels kept)
-      last=s.status;render(s);}
+      if(statusChanged){
+        if(s.status=='reached'){bell();if(navigator.vibrate)navigator.vibrate(250);}
+        if(s.status=='requested'&&s.mode=='mvp')startRing();   // ring until approve
+        if(s.status=='delivered'){success();setTimeout(()=>{fetch('/next');},5000);}
+      }
+      last=key;render(s);}
     async function ok(){stopRing();await fetch('/owner/approve',{method:'POST'});}
-    async function empty(){await fetch('/reset');last=null;}
+    async function empty(){await fetch('/reset');last='';}
     tick();setInterval(tick,1000);"""
     return shell("Owner · Flat 304", body, js)
 
@@ -238,7 +246,8 @@ def box():
     return shell("Box simulator", body, js)
 
 @app.route("/state")
-def state(): return jsonify(S)
+def state():
+    d=dict(S); d["full"]=isfull(); d["cap"]=CAP_COUNT; return jsonify(d)
 @app.route("/courier/reached",methods=["POST"])
 def creach():
     if S["status"]=="idle": setst("reached")
@@ -265,10 +274,14 @@ def bunl():
 @app.route("/box/delivered",methods=["POST"])
 def bdel():
     d=request.get_json() or {}; w=int(d.get("weight",0)); S["weight"]=w; S["photo"]=bool(d.get("photo",False))
-    S["parcels"].append({"platform":S["platform"],"pid":S["partner_id"],"w":w})
+    S["parcels"].append({"platform":S["platform"],"pid":S["partner_id"],"w":w,"t":datetime.now().strftime("%I:%M %p")})
     S["total"]=sum(p["w"] for p in S["parcels"])
     setst("delivered")
-    return jsonify(ok=True, total=S["total"], count=len(S["parcels"]))
+    return jsonify(ok=True, total=S["total"], count=len(S["parcels"]), full=isfull())
+def isfull():
+    return len(S["parcels"])>=CAP_COUNT or S["total"]>=CAP_WEIGHT
+@app.route("/full")
+def full(): return jsonify(full=isfull(), count=len(S["parcels"]), cap=CAP_COUNT, total=S["total"], capw=CAP_WEIGHT)
 @app.route("/next")
 def nxt():
     # ready for the next courier — keep parcels, clear only the current transaction
