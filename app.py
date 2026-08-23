@@ -168,29 +168,34 @@ def courier():
 
 @app.route("/owner")
 def owner():
-    body="""<div class='card'><div id='c'></div></div>
-    <audio id='ding' preload='auto'></audio>"""
-    js="""let last='';let ac;
-    function beep(times){try{if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();
-      for(let i=0;i<times;i++){let o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);
+    body="""<div id='enable' class='card gold' style='text-align:center'>
+      <div class='hero'><div class='em'>🔔</div><div class='t'>Enable alerts</div><div class='s'>Tap once so Wallaet can ring &amp; vibrate for deliveries</div></div>
+      <button class='b-gold' onclick='enable()'>🔔  Enable sound &amp; vibration</button>
+    </div>
+    <div id='c'></div>"""
+    js="""let last=null;let ac;let soundOn=false;
+    function enable(){try{ac=new(window.AudioContext||window.webkitAudioContext)();let o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);g.gain.setValueAtTime(0.15,ac.currentTime);o.frequency.value=880;o.start();o.stop(ac.currentTime+0.15);}catch(e){}
+      if(navigator.vibrate)navigator.vibrate(120);soundOn=true;document.getElementById('enable').style.display='none';}
+    function beep(times){if(!soundOn||!ac)return;try{for(let i=0;i<times;i++){let o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);
         let t=ac.currentTime+i*0.5;o.frequency.setValueAtTime(880,t);o.frequency.setValueAtTime(1320,t+0.12);
-        g.gain.setValueAtTime(0.001,t);g.gain.exponentialRampToValueAtTime(0.4,t+0.03);g.gain.exponentialRampToValueAtTime(0.001,t+0.4);
+        g.gain.setValueAtTime(0.001,t);g.gain.exponentialRampToValueAtTime(0.5,t+0.03);g.gain.exponentialRampToValueAtTime(0.001,t+0.4);
         o.start(t);o.stop(t+0.42);}}catch(e){}}
-    function alertOwner(){beep(3);if(navigator.vibrate)navigator.vibrate([300,120,300,120,300]);}
-    async function tick(){let s=await(await fetch('/state')).json();let c=document.getElementById('c');
-      if(s.status!=last){ // state just changed
-        if(s.status=='reached'){beep(1);if(navigator.vibrate)navigator.vibrate(200);}
-        if(s.status=='requested'&&s.mode=='mvp')alertOwner();
-        if(s.status=='delivered'){beep(1);}
-        last=s.status;}
-      if(s.status=='idle')c.innerHTML="<div class='st'><span class='em'>🏠</span><b>All quiet</b><br><span class='muted'>Waiting for a delivery…</span></div>";
-      else if(s.status=='reached')c.innerHTML="<div class='notif'><div style='font-size:40px'>📍🔔</div><b style='font-size:18px;color:var(--grn)'>Courier reached your address</b><br><span class='blink' style='color:var(--grn);font-weight:700'>● WALLAET ACTIVE</span><br><span class='muted'>Get ready — a delivery is starting</span></div>";
-      else if(s.status=='scanned')c.innerHTML="<div class='st'><span class='em'>🔳</span><b>Courier at your box</b><br><span class='muted'>W-304 · identifying delivery…</span></div>";
+    function ringHard(){beep(3);if(navigator.vibrate)navigator.vibrate([400,150,400,150,400]);}
+    function render(s){let c=document.getElementById('c');
+      if(s.status=='idle')c.innerHTML="<div class='card'><div class='st'><span class='em'>🏠</span><b>All quiet</b><br><span class='muted'>Waiting for a delivery…</span></div></div>";
+      else if(s.status=='reached')c.innerHTML="<div class='card'><div class='notif'><div style='font-size:40px'>📍🔔</div><b style='font-size:18px;color:var(--grn)'>Courier reached your address</b><br><span class='blink' style='color:var(--grn);font-weight:700'>● WALLAET ACTIVE</span><br><span class='muted'>Get ready — a delivery is starting</span></div></div>";
+      else if(s.status=='scanned')c.innerHTML="<div class='card'><div class='st'><span class='em'>🔳</span><b>Courier at your box</b><br><span class='muted'>W-304 · identifying delivery…</span></div></div>";
       else if(s.status=='requested'){
-        if(s.mode=='flex')c.innerHTML="<div class='st anim'><div class='ring'></div><b>"+s.platform+" delivery incoming</b><br><span class='muted'>Auto-verified by "+s.platform+" — no action needed</span></div>";
-        else c.innerHTML="<div class='card anim' style='margin:0;padding:24px;border:1px solid var(--gold);animation:glow 1s infinite'><div style='text-align:center'><span class='shake' style='font-size:56px;display:inline-block'>🔔</span><br><b style='font-size:20px;color:var(--gold)'>Delivery request!</b><br><span class='muted'>Approve to open the box</span></div><div style='margin-top:16px;text-align:center'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><button class='b-grn' onclick='ok()'>✓  APPROVE DELIVERY</button><button class='b-dark' onclick='alertOwner()' style='margin-top:8px'>🔔 Ring again</button></div>";}
-      else if(s.status=='approved'||s.status=='unlocked')c.innerHTML="<div class='st anim'><span class='em'>🔓</span><b>Approved</b><br><span class='muted'>Delivery in progress…</span></div>";
-      else if(s.status=='delivered')c.innerHTML="<div class='dcard anim'><div style='display:flex;justify-content:space-between;align-items:center'><b style='color:var(--grn);font-size:16px'>📦 DELIVERED</b><span style='color:var(--grn);font-size:22px'>✓</span></div><div style='margin-top:12px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><div style='margin-top:16px'><span class='muted'>WEIGHT CAPTURED</span><div class='big'>"+s.weight+" <span style='font-size:20px;color:var(--gr)'>g</span></div></div>"+(s.photo?"<div class='photo'><span style='font-size:30px'>📸</span>Delivery photo captured</div>":"")+"</div>";}
+        if(s.mode=='flex')c.innerHTML="<div class='card'><div class='st'><div class='ring'></div><b>"+s.platform+" delivery incoming</b><br><span class='muted'>Auto-verified by "+s.platform+" — no action needed</span></div></div>";
+        else c.innerHTML="<div class='card' style='border:1px solid var(--gold);animation:glow 1s infinite'><div style='text-align:center'><span class='shake' style='font-size:56px;display:inline-block'>🔔</span><br><b style='font-size:20px;color:var(--gold)'>Delivery request!</b><br><span class='muted'>Approve to open the box</span></div><div style='margin-top:16px;text-align:center'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><button class='b-grn' onclick='ok()'>✓  APPROVE DELIVERY</button><button class='b-dark' onclick='ringHard()'>🔔 Ring again</button></div>";}
+      else if(s.status=='approved'||s.status=='unlocked')c.innerHTML="<div class='card'><div class='st'><span class='em'>🔓</span><b>Approved</b><br><span class='muted'>Delivery in progress…</span></div></div>";
+      else if(s.status=='delivered')c.innerHTML="<div class='card'><div class='dcard'><div style='display:flex;justify-content:space-between;align-items:center'><b style='color:var(--grn);font-size:16px'>📦 DELIVERED</b><span style='color:var(--grn);font-size:22px'>✓</span></div><div style='margin-top:12px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><div style='margin-top:16px'><span class='muted'>WEIGHT CAPTURED</span><div class='big'>"+s.weight+" <span style='font-size:20px;color:var(--gr)'>g</span></div></div>"+(s.photo?"<div class='photo'><span style='font-size:30px'>📸</span>Delivery photo captured</div>":"")+"</div></div>";}
+    async function tick(){let s=await(await fetch('/state')).json();
+      if(s.status===last)return;               // no change -> no redraw (kills flicker)
+      if(s.status=='reached'){beep(1);if(navigator.vibrate)navigator.vibrate(250);}
+      if(s.status=='requested'&&s.mode=='mvp')ringHard();
+      if(s.status=='delivered')beep(1);
+      last=s.status;render(s);}
     async function ok(){await fetch('/owner/approve',{method:'POST'});}
     tick();setInterval(tick,1000);"""
     return shell("Owner · Flat 304", body, js)
