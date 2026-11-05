@@ -11,7 +11,7 @@ CAP_WEIGHT = 5000    # or up to 5 kg
 def fresh():
     return {"mode":"mvp","status":"idle","partner_id":"","platform":"",
             "photo":False,"weight":0,"unit":"W-304","flat":"Flat 304",
-            "parcels":[], "total":0, "last":time.time(), "last_photo_id":None}
+            "parcels":[], "total":0, "last":time.time(), "last_photo_id":None, "last_photo_ids":[]}
 S = fresh()
 PHOTOS = {}        # id -> (content_type, raw_bytes) : asli camera photos Pi se
 _photo_seq = 0
@@ -276,19 +276,20 @@ def bunl():
 @app.route("/box/delivered",methods=["POST"])
 def bdel():
     global _photo_seq
+    import base64
     d=request.get_json() or {}; w=int(d.get("weight",0)); S["weight"]=w
-    img=d.get("photo_b64") or ""                      # Pi se asli camera photo (data-URI)
-    pid_photo=None
-    if img:
+    imgs=d.get("photos") or ([d["photo_b64"]] if d.get("photo_b64") else [])   # list ya single (backward)
+    ids=[]
+    for im in imgs:
         try:
-            import base64
-            b64=img.split(",",1)[1] if img.startswith("data:") else img
-            _photo_seq+=1; PHOTOS[_photo_seq]=("image/jpeg", base64.b64decode(b64)); pid_photo=_photo_seq
+            b64=im.split(",",1)[1] if im.startswith("data:") else im
+            _photo_seq+=1; PHOTOS[_photo_seq]=("image/jpeg", base64.b64decode(b64)); ids.append(_photo_seq)
         except Exception:
-            pid_photo=None
-    S["photo"]=bool(pid_photo) or bool(d.get("photo",False))
-    S["last_photo_id"]=pid_photo
-    S["parcels"].append({"platform":S["platform"],"pid":S["partner_id"],"w":w,"t":datetime.now().strftime("%I:%M %p"),"photo_id":pid_photo})
+            pass
+    S["photo"]=bool(ids) or bool(d.get("photo",False))
+    S["last_photo_id"]=ids[-1] if ids else None       # backward single
+    S["last_photo_ids"]=ids
+    S["parcels"].append({"platform":S["platform"],"pid":S["partner_id"],"w":w,"t":datetime.now().strftime("%I:%M %p"),"photo_id":(ids[-1] if ids else None),"photo_ids":ids})
     S["total"]=sum(p["w"] for p in S["parcels"])
     setst("delivered")
     return jsonify(ok=True, total=S["total"], count=len(S["parcels"]), full=isfull())
@@ -304,7 +305,7 @@ def full(): return jsonify(full=isfull(), count=len(S["parcels"]), cap=CAP_COUNT
 @app.route("/next")
 def nxt():
     # ready for the next courier — keep parcels, clear only the current transaction
-    S["status"]="idle"; S["partner_id"]=""; S["platform"]=""; S["weight"]=0; S["photo"]=False; S["last_photo_id"]=None; S["mode"]="mvp"; S["last"]=time.time()
+    S["status"]="idle"; S["partner_id"]=""; S["platform"]=""; S["weight"]=0; S["photo"]=False; S["last_photo_id"]=None; S["last_photo_ids"]=[]; S["mode"]="mvp"; S["last"]=time.time()
     return jsonify(ok=True)
 @app.route("/reset")
 def reset(): S.update(fresh()); PHOTOS.clear(); return jsonify(ok=True)
