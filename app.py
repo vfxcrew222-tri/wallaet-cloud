@@ -11,8 +11,10 @@ CAP_WEIGHT = 5000    # or up to 5 kg
 def fresh():
     return {"mode":"mvp","status":"idle","partner_id":"","platform":"",
             "photo":False,"weight":0,"unit":"W-304","flat":"Flat 304",
-            "parcels":[], "total":0, "last":time.time()}
+            "parcels":[], "total":0, "last":time.time(), "last_photo_id":None}
 S = fresh()
+PHOTOS = {}        # id -> (content_type, raw_bytes) : asli camera photos Pi se
+_photo_seq = 0
 def setst(x): S["status"]=x; S["last"]=time.time()
 
 CSS = """
@@ -188,7 +190,7 @@ def owner():
     function ringHard(){bell();if(navigator.vibrate)navigator.vibrate([400,150,400]);}
     function startRing(){if(ringTimer)return;ringHard();ringTimer=setInterval(ringHard,1600);}
     function stopRing(){if(ringTimer){clearInterval(ringTimer);ringTimer=null;}}
-    function plist(s){if(!s.parcels||!s.parcels.length)return"";let rows=s.parcels.map((p,i)=>"<div style='display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #1e1e24'><span>📦 "+(i+1)+" · "+p.platform+"<br><span class='muted' style='font-size:11px'>🕐 "+(p.t||"")+" · "+p.pid+"</span></span><span style='color:var(--gold)'>"+p.w+" g</span></div>").join("");
+    function plist(s){if(!s.parcels||!s.parcels.length)return"";let rows=s.parcels.map((p,i)=>"<div style='display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #1e1e24'><span>📦 "+(i+1)+" · "+p.platform+"<br><span class='muted' style='font-size:11px'>🕐 "+(p.t||"")+" · "+p.pid+"</span></span><span style='display:flex;align-items:center;gap:9px'>"+(p.photo_id?"<img src='/box/photo/"+p.photo_id+"' style='width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid #2a2a30' onclick='window.open(this.src)'>":"")+"<b style='color:var(--gold)'>"+p.w+" g</b></span></div>").join("");
       let full=s.full?"<div class='modebox' style='background:#2a1414;color:#e88;text-align:center;font-weight:700'>⚠️ BOX FULL — "+s.parcels.length+"/"+s.cap+" parcels. Please empty it.</div>":"";
       return "<div class='card'><div style='display:flex;justify-content:space-between;align-items:center'><b>📥 Box contents</b><span class='badge'>"+s.parcels.length+"/"+s.cap+" parcels</span></div>"+full+"<div style='margin-top:10px'>"+rows+"</div><div style='display:flex;justify-content:space-between;margin-top:14px'><span class='muted'>TOTAL WEIGHT</span><b class='big' style='font-size:30px'>"+s.total+" <span style='font-size:15px;color:var(--gr)'>g</span></b></div><button class='b-red' onclick='empty()'>🔓 Empty box (I collected)</button></div>";}
     function render(s){let c=document.getElementById('c');
@@ -201,7 +203,7 @@ def owner():
         if(s.mode=='flex')c.innerHTML="<div class='card'><div class='st'><div class='ring'></div><b>"+s.platform+" delivery incoming</b><br><span class='muted'>Auto-verified by "+s.platform+" — no action needed</span></div></div>";
         else c.innerHTML="<div class='card' style='border:1px solid var(--gold);animation:glow 1s infinite'><div style='text-align:center'><span class='shake' style='font-size:56px;display:inline-block'>🔔</span><br><b style='font-size:20px;color:var(--gold)'>Delivery request!</b><br><span class='muted'>Approve to open the box</span></div><div style='margin-top:16px;text-align:center'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><button class='b-grn' onclick='ok()'>✓  APPROVE DELIVERY</button><button class='b-dark' onclick='ringHard()'>🔔 Ring again</button></div>";}
       else if(s.status=='approved'||s.status=='unlocked')c.innerHTML="<div class='card'><div class='st'><span class='em'>🔓</span><b>Approved</b><br><span class='muted'>Delivery in progress…</span></div></div>";
-      else if(s.status=='delivered')c.innerHTML="<div class='card'><div class='dcard'><div style='display:flex;justify-content:space-between;align-items:center'><b style='color:var(--grn);font-size:16px'>📦 DELIVERED</b><span style='color:var(--grn);font-size:22px'>✓</span></div><div style='margin-top:12px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><div style='margin-top:16px'><span class='muted'>THIS PARCEL</span><div class='big'>"+s.weight+" <span style='font-size:20px;color:var(--gr)'>g</span></div></div>"+(s.photo?"<div class='photo'><span style='font-size:30px'>📸</span>Delivery photo captured</div>":"")+"<div style='display:flex;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid #1e1e24'><span class='muted'>Box now holds "+s.parcels.length+" parcel"+(s.parcels.length>1?"s":"")+"</span><b style='color:var(--gold)'>total "+s.total+" g</b></div></div></div>";}
+      else if(s.status=='delivered')c.innerHTML="<div class='card'><div class='dcard'><div style='display:flex;justify-content:space-between;align-items:center'><b style='color:var(--grn);font-size:16px'>📦 DELIVERED</b><span style='color:var(--grn);font-size:22px'>✓</span></div><div style='margin-top:12px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><div style='margin-top:16px'><span class='muted'>THIS PARCEL</span><div class='big'>"+s.weight+" <span style='font-size:20px;color:var(--gr)'>g</span></div></div>"+(s.last_photo_id?"<div class='lbl' style='margin-top:14px'>Delivery proof</div><div class='photo' style='padding:0;overflow:hidden;height:200px'><img src='/box/photo/"+s.last_photo_id+"' style='width:100%;height:100%;object-fit:cover;border-radius:14px' onclick='window.open(this.src)'></div>":(s.photo?"<div class='photo'><span style='font-size:30px'>📸</span>Delivery photo captured</div>":""))+"<div style='display:flex;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid #1e1e24'><span class='muted'>Box now holds "+s.parcels.length+" parcel"+(s.parcels.length>1?"s":"")+"</span><b style='color:var(--gold)'>total "+s.total+" g</b></div></div></div>";}
     async function tick(){let s=await(await fetch('/state')).json();
       let key=s.status+'|'+s.partner_id+'|'+(s.parcels?s.parcels.length:0);
       if(key===last){return;}                  // nothing changed -> no redraw (kills flicker)
@@ -273,11 +275,28 @@ def bunl():
     return jsonify(ok=True)
 @app.route("/box/delivered",methods=["POST"])
 def bdel():
-    d=request.get_json() or {}; w=int(d.get("weight",0)); S["weight"]=w; S["photo"]=bool(d.get("photo",False))
-    S["parcels"].append({"platform":S["platform"],"pid":S["partner_id"],"w":w,"t":datetime.now().strftime("%I:%M %p")})
+    global _photo_seq
+    d=request.get_json() or {}; w=int(d.get("weight",0)); S["weight"]=w
+    img=d.get("photo_b64") or ""                      # Pi se asli camera photo (data-URI)
+    pid_photo=None
+    if img:
+        try:
+            import base64
+            b64=img.split(",",1)[1] if img.startswith("data:") else img
+            _photo_seq+=1; PHOTOS[_photo_seq]=("image/jpeg", base64.b64decode(b64)); pid_photo=_photo_seq
+        except Exception:
+            pid_photo=None
+    S["photo"]=bool(pid_photo) or bool(d.get("photo",False))
+    S["last_photo_id"]=pid_photo
+    S["parcels"].append({"platform":S["platform"],"pid":S["partner_id"],"w":w,"t":datetime.now().strftime("%I:%M %p"),"photo_id":pid_photo})
     S["total"]=sum(p["w"] for p in S["parcels"])
     setst("delivered")
     return jsonify(ok=True, total=S["total"], count=len(S["parcels"]), full=isfull())
+@app.route("/box/photo/<int:pid>")
+def bphoto(pid):
+    p=PHOTOS.get(pid)
+    if not p: return ("",404)
+    return app.response_class(p[1], mimetype=p[0], headers={"Cache-Control":"max-age=86400"})
 def isfull():
     return len(S["parcels"])>=CAP_COUNT or S["total"]>=CAP_WEIGHT
 @app.route("/full")
@@ -285,10 +304,10 @@ def full(): return jsonify(full=isfull(), count=len(S["parcels"]), cap=CAP_COUNT
 @app.route("/next")
 def nxt():
     # ready for the next courier — keep parcels, clear only the current transaction
-    S["status"]="idle"; S["partner_id"]=""; S["platform"]=""; S["weight"]=0; S["photo"]=False; S["mode"]="mvp"; S["last"]=time.time()
+    S["status"]="idle"; S["partner_id"]=""; S["platform"]=""; S["weight"]=0; S["photo"]=False; S["last_photo_id"]=None; S["mode"]="mvp"; S["last"]=time.time()
     return jsonify(ok=True)
 @app.route("/reset")
-def reset(): S.update(fresh()); return jsonify(ok=True)
+def reset(): S.update(fresh()); PHOTOS.clear(); return jsonify(ok=True)
 
 LANDING = """
 <!doctype html><html><head><meta charset='utf-8'>
