@@ -205,7 +205,7 @@ def owner():
       else if(s.status=='approved'||s.status=='unlocked')c.innerHTML="<div class='card'><div class='st'><span class='em'>🔓</span><b>Approved</b><br><span class='muted'>Delivery in progress…</span></div></div>";
       else if(s.status=='delivered')c.innerHTML="<div class='card'><div class='dcard'><div style='display:flex;justify-content:space-between;align-items:center'><b style='color:var(--grn);font-size:16px'>📦 DELIVERED</b><span style='color:var(--grn);font-size:22px'>✓</span></div><div style='margin-top:12px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><div style='margin-top:16px'><span class='muted'>THIS PARCEL</span><div class='big'>"+s.weight+" <span style='font-size:20px;color:var(--gr)'>g</span></div></div>"+((s.last_photo_ids&&s.last_photo_ids.length)?"<div class='lbl' style='margin-top:14px'>Delivery proof · "+s.last_photo_ids.length+" shots</div><div style='display:flex;gap:8px;overflow-x:auto;padding-bottom:4px'>"+s.last_photo_ids.map(id=>"<img src='/box/photo/"+id+"' style='height:170px;flex:0 0 auto;border-radius:12px;border:1px solid #2a2a30;object-fit:cover' onclick='window.open(this.src)'>").join("")+"</div>":(s.photo?"<div class='photo'><span style='font-size:30px'>📸</span>Delivery photo captured</div>":""))+"<div style='display:flex;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid #1e1e24'><span class='muted'>Box now holds "+s.parcels.length+" parcel"+(s.parcels.length>1?"s":"")+"</span><b style='color:var(--gold)'>total "+s.total+" g</b></div></div></div>";}
     async function tick(){let s=await(await fetch('/state')).json();
-      let key=s.status+'|'+s.partner_id+'|'+(s.parcels?s.parcels.length:0)+'|'+(s.last_photo_ids?s.last_photo_ids.length:0);
+      let key=s.status+'|'+s.partner_id+'|'+(s.parcels?s.parcels.length:0);
       if(key===last){return;}                  // nothing changed -> no redraw (kills flicker)
       let statusChanged = !last || last.split('|')[0]!==s.status;
       stopRing();                              // any change stops the ring loop
@@ -272,47 +272,27 @@ def bpoll(): return jsonify(command=("unlock" if S["status"]=="approved" else "n
 @app.route("/box/unlocked",methods=["POST"])
 def bunl():
     if S["status"]=="approved": setst("unlocked")
-    S["last_photo_ids"]=[]; S["last_photo_id"]=None   # naya session -> purani session photos clear
     return jsonify(ok=True)
 @app.route("/box/delivered",methods=["POST"])
 def bdel():
     global _photo_seq
     import base64
     d=request.get_json() or {}; w=int(d.get("weight",0)); S["weight"]=w
-    imgs=d.get("photos") or ([d["photo_b64"]] if d.get("photo_b64") else [])   # backward: POST me photos bheji ho
+    imgs=d.get("photos") or ([d["photo_b64"]] if d.get("photo_b64") else [])   # list ya single (backward)
+    ids=[]
     for im in imgs:
         try:
             b64=im.split(",",1)[1] if im.startswith("data:") else im
-            _photo_seq+=1; PHOTOS[_photo_seq]=("image/jpeg", base64.b64decode(b64))
-            S.setdefault("last_photo_ids",[]).append(_photo_seq)
+            _photo_seq+=1; PHOTOS[_photo_seq]=("image/jpeg", base64.b64decode(b64)); ids.append(_photo_seq)
         except Exception:
             pass
-    ids=list(S.get("last_photo_ids",[]))              # jo photos ab tak aayi (FLAP_OPEN etc background se)
     S["photo"]=bool(ids) or bool(d.get("photo",False))
-    S["last_photo_id"]=ids[-1] if ids else None
+    S["last_photo_id"]=ids[-1] if ids else None       # backward single
+    S["last_photo_ids"]=ids
     S["parcels"].append({"platform":S["platform"],"pid":S["partner_id"],"w":w,"t":datetime.now().strftime("%I:%M %p"),"photo_id":(ids[-1] if ids else None),"photo_ids":ids})
     S["total"]=sum(p["w"] for p in S["parcels"])
     setst("delivered")
     return jsonify(ok=True, total=S["total"], count=len(S["parcels"]), full=isfull())
-@app.route("/box/photo_add",methods=["POST"])
-def bphotoadd():
-    # v67: delivery ke dauraan ek-ek photo background me aati - store karke CURRENT
-    # session + last parcel se jod do. Owner page live strip me dikhata hai.
-    global _photo_seq
-    import base64
-    d=request.get_json() or {}; im=d.get("img") or ""
-    if not im: return jsonify(ok=False)
-    try:
-        b64=im.split(",",1)[1] if im.startswith("data:") else im
-        _photo_seq+=1; PHOTOS[_photo_seq]=("image/jpeg", base64.b64decode(b64))
-        S.setdefault("last_photo_ids",[]).append(_photo_seq)
-        S["last_photo_id"]=_photo_seq; S["photo"]=True
-        if S["parcels"]:                              # delivered ho chuka to parcel se bhi jod do
-            S["parcels"][-1].setdefault("photo_ids",[]).append(_photo_seq)
-            S["parcels"][-1]["photo_id"]=_photo_seq
-        return jsonify(ok=True, id=_photo_seq)
-    except Exception:
-        return jsonify(ok=False)
 @app.route("/box/photo/<int:pid>")
 def bphoto(pid):
     p=PHOTOS.get(pid)
