@@ -133,9 +133,17 @@ def courier():
         <option value='Blinkit'>Blinkit — Standard (MVP)</option>
       </select>
       <div id='mh' class='modebox'></div>
+      <div class='lbl'>Parcel size <span style='text-transform:none;letter-spacing:0;color:var(--gr)'>(from platform API)</span></div>
+      <select id='psize' onchange='sizeCheck()'>
+        <option value='fit'>Small — 20×15×10 cm</option>
+        <option value='fit'>Medium — 30×25×20 cm</option>
+        <option value='fit'>Large — 38×33×38 cm</option>
+        <option value='big'>Oversized — 50×45×50 cm</option>
+      </select>
+      <div id='sv' class='modebox'></div>
       <div class='lbl'>Delivery Partner ID (required)</div>
       <input id='pid' placeholder='e.g. AMZ-DEL-48213'>
-      <button class='b-gold' onclick='req()'>Request Delivery</button>
+      <button id='reqbtn' class='b-gold' onclick='req()'>Request Delivery</button>
       <div class='muted' style='margin-top:10px'>Box limit 40x35x40 cm. Larger parcel &rarr; normal doorstep delivery.</div>
     </div>
     <div id='s3' class='card' style='display:none'>
@@ -144,7 +152,10 @@ def courier():
     </div>"""
     js="""let poll;const INTEG=['Amazon','Flipkart'];
     async function reached(){await fetch('/courier/reached',{method:'POST'});document.getElementById('s0').style.display='none';document.getElementById('s1').style.display='block';}
-    function goForm(){fetch('/courier/scan',{method:'POST'});document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='block';modeHint();}
+    function goForm(){fetch('/courier/scan',{method:'POST'});document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='block';modeHint();sizeCheck();}
+    function sizeCheck(){let v=document.getElementById('psize').value;let sv=document.getElementById('sv');let rb=document.getElementById('reqbtn');
+      if(v=='big'){sv.style.background='#2a1414';sv.style.color='#e88';sv.innerHTML='🚪 <b>Door delivery</b> — parcel box me nahi aayega (limit 40×35×40 cm). Customer ko hand-deliver karo.';if(rb)rb.style.display='none';}
+      else{sv.style.background='#12261a';sv.style.color='#6FA07A';sv.innerHTML='📦 <b>Box delivery</b> — Wallaet box me fit hai, aage badho.';if(rb)rb.style.display='block';}}
     function manualScan(){goForm();}
     let qr;
     function scan(){
