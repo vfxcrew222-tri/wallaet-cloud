@@ -11,7 +11,8 @@ CAP_WEIGHT = 5000    # or up to 5 kg
 def fresh():
     return {"mode":"mvp","status":"idle","partner_id":"","platform":"",
             "photo":False,"weight":0,"unit":"W-304","flat":"Flat 304",
-            "parcels":[], "total":0, "last":time.time(), "last_photo_id":None, "last_photo_ids":[]}
+            "parcels":[], "total":0, "last":time.time(), "last_photo_id":None, "last_photo_ids":[],
+            "otp":"", "mismatch":False}
 S = fresh()
 PHOTOS = {}        # id -> (content_type, raw_bytes) : asli camera photos Pi se
 _photo_seq = 0
@@ -165,8 +166,14 @@ def courier():
       await fetch('/courier/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({partner_id:pid,platform:plat})});
       document.getElementById('s2').style.display='none';document.getElementById('s3').style.display='block';poll=setInterval(tick,1000);tick();}
     function dots(n){for(let i=1;i<=4;i++){let d=document.getElementById('d'+i);d.className='dot'+(i<n?' done':i==n?' on':'');d.innerHTML=i<n?'✓':i;}}
+    async function otpYes(){await fetch('/courier/confirm',{method:'POST'});}
+    async function otpNo(){await fetch('/courier/mismatch',{method:'POST'});}
+    let cLast='';
     async function tick(){let s=await(await fetch('/state')).json();let el=document.getElementById('stt');
-      if(s.status=='requested'){dots(2);el.innerHTML=s.mode=='flex'?"<span class='em'>🔎</span>"+s.platform+" is verifying the order…":"<span class='em'>⏳</span>Waiting for owner approval…";}
+      if(s.status===cLast && s.status=='otp_sent'){return;}   // otp_sent: ek hi baar render (button tap safe)
+      cLast=s.status;
+      if(s.status=='requested'){dots(2);el.innerHTML=s.mode=='flex'?"<span class='em'>🔎</span>"+s.platform+" is verifying the order…":"<span class='em'>⏳</span>Owner approve kar raha — OTP bhej raha…";}
+      else if(s.status=='otp_sent'){dots(2);el.innerHTML="<div style='font-size:13px;color:var(--gr);margin-bottom:10px'>Owner ne ye OTP bheja. Apne order ke OTP se milao:</div><div class='big' style='letter-spacing:8px;margin-bottom:14px'>"+s.otp+"</div><button class='b-grn' onclick='otpYes()'>✓ Match — box kholo</button><button class='b-red' onclick='otpNo()'>✗ Match nahi hua</button>";}
       else if(s.status=='approved'){dots(3);el.innerHTML="<span class='em'>✅</span>Verified! Box unlocking…";}
       else if(s.status=='unlocked'){dots(3);el.innerHTML="<span class='em'>🔓</span><b>Flap is OPEN</b><br>Drop the parcel now";}
       else if(s.status=='delivered'){dots(5);el.innerHTML="<span class='em'>📦</span><b>Delivered!</b><br>Thank you.<br><span class='muted'>Resetting…</span>";clearInterval(poll);setTimeout(()=>location.reload(),7000);}}"""
@@ -201,7 +208,8 @@ def owner():
       else if(s.status=='scanned')c.innerHTML="<div class='card'><div class='st'><span class='em'>🔳</span><b>Courier at your box</b><br><span class='muted'>W-304 · identifying delivery…</span></div></div>";
       else if(s.status=='requested'){
         if(s.mode=='flex')c.innerHTML="<div class='card'><div class='st'><div class='ring'></div><b>"+s.platform+" delivery incoming</b><br><span class='muted'>Auto-verified by "+s.platform+" — no action needed</span></div></div>";
-        else c.innerHTML="<div class='card' style='border:1px solid var(--gold);animation:glow 1s infinite'><div style='text-align:center'><span class='shake' style='font-size:56px;display:inline-block'>🔔</span><br><b style='font-size:20px;color:var(--gold)'>Delivery request!</b><br><span class='muted'>Approve to open the box</span></div><div style='margin-top:16px;text-align:center'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><button class='b-grn' onclick='ok()'>✓  APPROVE DELIVERY</button><button class='b-dark' onclick='ringHard()'>🔔 Ring again</button></div>";}
+        else c.innerHTML="<div class='card' style='border:1px solid var(--gold);animation:glow 1s infinite'><div style='text-align:center'><span class='shake' style='font-size:56px;display:inline-block'>🔔</span><br><b style='font-size:20px;color:var(--gold)'>Delivery request!</b><br><span class='muted'>SMS wala OTP daal ke approve karo</span></div><div style='margin-top:16px;text-align:center'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div>"+(s.mismatch?"<div class='modebox' style='background:#2a1414;color:#e88;text-align:center;margin-top:12px'>⚠️ Code mismatch — sahi OTP daalein</div>":"")+"<input id='otpIn' type='tel' maxlength='6' placeholder='SMS wala OTP' style='text-align:center;letter-spacing:5px;font-size:19px;margin-top:12px'><button class='b-grn' onclick='ok()'>✓ Approve & send OTP</button><button class='b-dark' onclick='ringHard()'>🔔 Ring again</button></div>";}
+      else if(s.status=='otp_sent')c.innerHTML="<div class='card'><div class='st'><div class='ring'></div><b>OTP courier ko bhej diya</b><br><span class='muted'>Code <b style='color:var(--gold);letter-spacing:3px'>"+s.otp+"</b> · courier match confirm kar raha…</span></div></div>";
       else if(s.status=='approved'||s.status=='unlocked')c.innerHTML="<div class='card'><div class='st'><span class='em'>🔓</span><b>Approved</b><br><span class='muted'>Delivery in progress…</span></div></div>";
       else if(s.status=='delivered')c.innerHTML="<div class='card'><div class='dcard'><div style='display:flex;justify-content:space-between;align-items:center'><b style='color:var(--grn);font-size:16px'>📦 DELIVERED</b><span style='color:var(--grn);font-size:22px'>✓</span></div><div style='margin-top:12px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><div style='margin-top:16px'><span class='muted'>THIS PARCEL</span><div class='big'>"+s.weight+" <span style='font-size:20px;color:var(--gr)'>g</span></div></div>"+((s.last_photo_ids&&s.last_photo_ids.length)?"<div class='lbl' style='margin-top:14px'>Delivery proof · "+s.last_photo_ids.length+" shots</div><div style='display:flex;gap:8px;overflow-x:auto;padding-bottom:4px'>"+s.last_photo_ids.map(id=>"<img src='/box/photo/"+id+"' style='height:170px;flex:0 0 auto;border-radius:12px;border:1px solid #2a2a30;object-fit:cover' onclick='window.open(this.src)'>").join("")+"</div>":(s.photo?"<div class='photo'><span style='font-size:30px'>📸</span>Delivery photo captured</div>":""))+"<div style='display:flex;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid #1e1e24'><span class='muted'>Box now holds "+s.parcels.length+" parcel"+(s.parcels.length>1?"s":"")+"</span><b style='color:var(--gold)'>total "+s.total+" g</b></div></div></div>";}
     async function tick(){let s=await(await fetch('/state')).json();
@@ -215,7 +223,7 @@ def owner():
         if(s.status=='delivered'){success();setTimeout(()=>{fetch('/next');},5000);}
       }
       last=key;render(s);}
-    async function ok(){stopRing();await fetch('/owner/approve',{method:'POST'});}
+    async function ok(){stopRing();let el=document.getElementById('otpIn');let otp=el?(el.value||'').trim():'';if(!otp){alert('SMS wala OTP daalein');return;}let r=await(await fetch('/owner/approve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({otp:otp})})).json();if(!r.ok)alert(r.err||'OTP daalein');}
     async function empty(){await fetch('/reset');last='';}
     tick();setInterval(tick,1000);"""
     return shell("Owner · Flat 304", body, js)
@@ -266,7 +274,27 @@ def creq():
     if S["mode"]=="flex": setst("approved")
     return jsonify(ok=True,mode=S["mode"])
 @app.route("/owner/approve",methods=["POST"])
-def aok(): setst("approved"); return jsonify(ok=True)
+def aok():
+    # MVP: owner SMS wala OTP type kare -> courier ko bheja jata (status=otp_sent),
+    # courier match confirm kare tabhi approved. (firmware ke OTP flow jaisa)
+    d=request.get_json() or {}
+    otp="".join(ch for ch in str(d.get("otp","")) if ch.isdigit())[:6]
+    if not otp:
+        return jsonify(ok=False, err="SMS wala OTP daalein")
+    S["otp"]=otp; S["mismatch"]=False
+    setst("otp_sent")
+    return jsonify(ok=True, otp=otp)
+@app.route("/courier/confirm",methods=["POST"])
+def cconfirm():
+    # courier: OTP apne order se MATCH -> approved -> Pi unlock karega
+    if S["status"]=="otp_sent": setst("approved")
+    return jsonify(ok=True)
+@app.route("/courier/mismatch",methods=["POST"])
+def cmismatch():
+    # courier: OTP match nahi -> owner ko wapas (sahi OTP bheje)
+    S["otp"]=""; S["mismatch"]=True
+    if S["status"]=="otp_sent": setst("requested")
+    return jsonify(ok=True)
 @app.route("/box/poll")
 def bpoll(): return jsonify(command=("unlock" if S["status"]=="approved" else "none"),status=S["status"],mode=S["mode"])
 @app.route("/box/unlocked",methods=["POST"])
@@ -305,7 +333,7 @@ def full(): return jsonify(full=isfull(), count=len(S["parcels"]), cap=CAP_COUNT
 @app.route("/next")
 def nxt():
     # ready for the next courier — keep parcels, clear only the current transaction
-    S["status"]="idle"; S["partner_id"]=""; S["platform"]=""; S["weight"]=0; S["photo"]=False; S["last_photo_id"]=None; S["last_photo_ids"]=[]; S["mode"]="mvp"; S["last"]=time.time()
+    S["status"]="idle"; S["partner_id"]=""; S["platform"]=""; S["weight"]=0; S["photo"]=False; S["last_photo_id"]=None; S["last_photo_ids"]=[]; S["otp"]=""; S["mismatch"]=False; S["mode"]="mvp"; S["last"]=time.time()
     return jsonify(ok=True)
 @app.route("/reset")
 def reset(): S.update(fresh()); PHOTOS.clear(); return jsonify(ok=True)
