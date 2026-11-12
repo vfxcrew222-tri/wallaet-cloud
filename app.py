@@ -111,8 +111,12 @@ def demo():
 @app.route("/courier")
 def courier():
     body="""
-    <div id='s0' class='card gold anim' style='text-align:center'>
-      <div class='hero'><div class='em pulse'>📍</div><div class='t'>At the delivery address</div><div class='s'>Tap when you reach the customer's door</div></div>
+    <div id='sflex'>
+      <div class='lbl' style='margin:2px 4px 12px'>📋 Amazon Flex · Aaj ki deliveries</div>
+      <div id='stops'></div>
+    </div>
+    <div id='s0' class='card gold anim' style='display:none;text-align:center'>
+      <div class='hero'><div class='em pulse'>📍</div><div class='t' id='s0name'>At the delivery address</div><div class='s' id='s0addr'>Tap when you reach the customer's door</div></div>
       <button class='b-gold' onclick='reached()'>📍  Reached location</button>
     </div>
     <div id='s1' class='card gold anim' style='display:none;text-align:center'>
@@ -122,7 +126,7 @@ def courier():
       <button class='b-dark' onclick='manualScan()'>Enter code manually</button>
     </div>
     <div id='s2' class='card gold' style='display:none'>
-      <div class='st' style='margin-bottom:12px'>✅ Box: <b style='color:var(--gold)'>W-304</b> · <span class='muted'>Flat 304</span></div>
+      <div class='st' style='margin-bottom:12px'>✅ Box: <b id='sbox' style='color:var(--gold)'>W-304</b> · <span id='saddr' class='muted'>Flat 304</span></div>
       <div class='lbl'>Step 3 · Platform</div>
       <select id='plat' onchange='modeHint()'>
         <option value='Amazon'>Amazon — Integrated (FLEX)</option>
@@ -143,6 +147,24 @@ def courier():
       <div id='stt' class='st'>&hellip;</div>
     </div>"""
     js="""let poll;const INTEG=['Amazon','Flipkart'];
+    const STOPS=[
+      {type:'box', name:'Priya Sharma', addr:'Flat 304, Green Residency', box:'W-304', plat:'Amazon'},
+      {type:'door', name:'Rahul Verma', addr:'Flat 12, MG Road'},
+      {type:'box', name:'Anjali Mehta', addr:'Flat 508, Lake View', box:'W-508', plat:'Meesho'}
+    ];
+    function renderStops(){document.getElementById('stops').innerHTML=STOPS.map((s,i)=>{
+      if(s.type=='door') return "<div class='card'><div style='display:flex;justify-content:space-between;align-items:center'><div><b>"+s.name+"</b><br><span class='muted' style='font-size:12px'>"+s.addr+"</span></div><span class='badge' style='color:#e88'>🚪 Door</span></div><div class='muted' style='font-size:11px;margin-top:8px'>Hand to customer — no Wallaet box</div></div>";
+      return "<div class='card gold'><div style='display:flex;justify-content:space-between;align-items:center'><div><b>"+s.name+"</b><br><span class='muted' style='font-size:12px'>"+s.addr+"</span></div><span class='badge' style='color:var(--grn)'>📦 "+s.box+"</span></div><div class='muted' style='font-size:11px;margin:6px 0 2px'>"+(INTEG.includes(s.plat)?s.plat+' Flex — auto (no OTP)':s.plat+' — owner OTP')+"</div><button class='b-gold' onclick='startStop("+i+")'>Deliver to this box</button></div>";
+    }).join("");}
+    let curStop=null;
+    function startStop(i){curStop=STOPS[i];
+      document.getElementById('s0name').textContent=curStop.name;
+      document.getElementById('s0addr').textContent=curStop.addr+'  ·  '+curStop.box;
+      document.getElementById('sbox').textContent=curStop.box;
+      document.getElementById('saddr').textContent=curStop.addr;
+      document.getElementById('plat').value=curStop.plat;
+      document.getElementById('sflex').style.display='none';
+      document.getElementById('s0').style.display='block';}
     async function reached(){await fetch('/courier/reached',{method:'POST'});document.getElementById('s0').style.display='none';document.getElementById('s1').style.display='block';}
     function goForm(){fetch('/courier/scan',{method:'POST'});document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='block';modeHint();}
     function manualScan(){goForm();}
@@ -176,7 +198,8 @@ def courier():
       else if(s.status=='otp_sent'){dots(2);el.innerHTML="<div style='font-size:13px;color:var(--gr);margin-bottom:10px'>Owner ne ye OTP bheja. Apne order ke OTP se milao:</div><div class='big' style='letter-spacing:8px;margin-bottom:14px'>"+s.otp+"</div><button class='b-grn' onclick='otpYes()'>✓ Match — box kholo</button><button class='b-red' onclick='otpNo()'>✗ Match nahi hua</button>";}
       else if(s.status=='approved'){dots(3);el.innerHTML="<span class='em'>✅</span>Verified! Box unlocking…";}
       else if(s.status=='unlocked'){dots(3);el.innerHTML="<span class='em'>🔓</span><b>Flap is OPEN</b><br>Drop the parcel now";}
-      else if(s.status=='delivered'){dots(5);el.innerHTML="<span class='em'>📦</span><b>Delivered!</b><br>Thank you.<br><span class='muted'>Resetting…</span>";clearInterval(poll);setTimeout(()=>location.reload(),7000);}}"""
+      else if(s.status=='delivered'){dots(5);el.innerHTML="<span class='em'>📦</span><b>Delivered!</b><br>Thank you.<br><span class='muted'>Resetting…</span>";clearInterval(poll);setTimeout(()=>location.reload(),7000);}}
+    renderStops();"""
     return shell("Courier", "<script src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'></script>"+body, js)
 
 @app.route("/owner")
