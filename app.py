@@ -127,20 +127,10 @@ def courier():
     </div>
     <div id='s2' class='card gold' style='display:none'>
       <div class='st' style='margin-bottom:12px'>✅ Box: <b id='sbox' style='color:var(--gold)'>W-304</b> · <span id='saddr' class='muted'>Flat 304</span></div>
-      <div class='lbl'>Step 3 · Platform</div>
-      <select id='plat' onchange='modeHint()'>
-        <option value='Amazon'>Amazon — Integrated (FLEX)</option>
-        <option value='Flipkart'>Flipkart — Integrated (FLEX)</option>
-        <option value='Meesho'>Meesho — Standard (MVP)</option>
-        <option value='Ajio'>Ajio — Standard (MVP)</option>
-        <option value='JioMart'>JioMart — Standard (MVP)</option>
-        <option value='Blinkit'>Blinkit — Standard (MVP)</option>
-      </select>
       <div id='mh' class='modebox'></div>
-      <div class='lbl'>Delivery Partner ID (required)</div>
-      <input id='pid' placeholder='e.g. AMZ-DEL-48213'>
+      <div class='lbl'>Delivery Partner ID</div>
+      <input id='pid' readonly style='opacity:.85'>
       <button class='b-gold' onclick='req()'>Request Delivery</button>
-      <div class='muted' style='margin-top:10px'>Box limit 40x35x40 cm. Larger parcel &rarr; normal doorstep delivery.</div>
     </div>
     <div id='s3' class='card' style='display:none'>
       <div class='steps'><div id='d1' class='dot'>1</div><div class='line'></div><div id='d2' class='dot'>2</div><div class='line'></div><div id='d3' class='dot'>3</div><div class='line'></div><div id='d4' class='dot'>4</div></div>
@@ -148,13 +138,14 @@ def courier():
     </div>"""
     js="""let poll;const INTEG=['Amazon','Flipkart'];
     const STOPS=[
-      {type:'box', name:'Priya Sharma', addr:'Flat 304, Green Residency', box:'W-304', plat:'Amazon'},
+      {type:'box', name:'Priya Sharma', addr:'Flat 304, Green Residency', box:'W-304', plat:'Amazon', mode:'flex', pid:'AMZ-FLX-4821'},
       {type:'door', name:'Rahul Verma', addr:'Flat 12, MG Road'},
-      {type:'box', name:'Anjali Mehta', addr:'Flat 508, Lake View', box:'W-508', plat:'Meesho'}
+      {type:'box', name:'Anjali Mehta', addr:'Flat 508, Lake View', box:'W-508', plat:'Meesho', mode:'mvp', pid:'MSH-DEL-7793'},
+      {type:'box', name:'Nitin Jain', addr:'Flat 333, Sky Towers', box:'W-333', plat:'Amazon', mode:'mvp', pid:'AMZ-MVP-3310'}
     ];
     function renderStops(){document.getElementById('stops').innerHTML=STOPS.map((s,i)=>{
       if(s.type=='door') return "<div class='card'><div style='display:flex;justify-content:space-between;align-items:center'><div><b>"+s.name+"</b><br><span class='muted' style='font-size:12px'>"+s.addr+"</span></div><span class='badge' style='color:#e88'>🚪 Door</span></div><div class='muted' style='font-size:11px;margin-top:8px'>Hand to customer — no Wallaet box</div></div>";
-      return "<div class='card gold'><div style='display:flex;justify-content:space-between;align-items:center'><div><b>"+s.name+"</b><br><span class='muted' style='font-size:12px'>"+s.addr+"</span></div><span class='badge' style='color:var(--grn)'>📦 "+s.box+"</span></div><div class='muted' style='font-size:11px;margin:6px 0 2px'>"+(INTEG.includes(s.plat)?s.plat+' Flex — auto (no OTP)':s.plat+' — owner OTP')+"</div><button class='b-gold' onclick='startStop("+i+")'>Deliver to this box</button></div>";
+      return "<div class='card gold'><div style='display:flex;justify-content:space-between;align-items:center'><div><b>"+s.name+"</b><br><span class='muted' style='font-size:12px'>"+s.addr+"</span></div><span class='badge' style='color:var(--grn)'>📦 "+s.box+"</span></div><div class='muted' style='font-size:11px;margin:6px 0 2px'>"+(s.mode=='flex'?s.plat+' Flex — auto (no OTP)':s.plat+' — owner OTP')+"</div><button class='b-gold' onclick='startStop("+i+")'>Deliver to this box</button></div>";
     }).join("");}
     let curStop=null;
     function startStop(i){curStop=STOPS[i];
@@ -162,11 +153,14 @@ def courier():
       document.getElementById('s0addr').textContent=curStop.addr+'  ·  '+curStop.box;
       document.getElementById('sbox').textContent=curStop.box;
       document.getElementById('saddr').textContent=curStop.addr;
-      document.getElementById('plat').value=curStop.plat;
+      document.getElementById('pid').value=curStop.pid;
+      let mh=document.getElementById('mh');
+      if(curStop.mode=='flex'){mh.style.background='#12261a';mh.style.color='#6FA07A';mh.innerHTML='<b>FLEX</b> — '+curStop.plat+' integrated. Auto-verify, box khulega (no OTP).';}
+      else{mh.style.background='#2a2410';mh.style.color='#C9A24B';mh.innerHTML='<b>MVP</b> — '+curStop.plat+'. Owner OTP se approve karega.';}
       document.getElementById('sflex').style.display='none';
       document.getElementById('s0').style.display='block';}
     async function reached(){await fetch('/courier/reached',{method:'POST'});document.getElementById('s0').style.display='none';document.getElementById('s1').style.display='block';}
-    function goForm(){fetch('/courier/scan',{method:'POST'});document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='block';modeHint();}
+    function goForm(){fetch('/courier/scan',{method:'POST'});document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='block';}
     function manualScan(){goForm();}
     let qr;
     function scan(){
@@ -180,12 +174,8 @@ def courier():
         ()=>{}
       ).catch(e=>{document.getElementById('scanhint').textContent='Camera unavailable — tap “Enter code manually”.';});
     }
-    function modeHint(){let p=document.getElementById('plat').value;let m=document.getElementById('mh');
-      if(INTEG.includes(p)){m.style.background='#12261a';m.style.color='#6FA07A';m.innerHTML='<b>FLEX</b> — '+p+' is integrated. Box will auto-verify & open (no owner approval).';}
-      else{m.style.background='#2a2410';m.style.color='#C9A24B';m.innerHTML='<b>MVP</b> — '+p+' not integrated. The owner will approve this delivery.';}}
-    async function req(){let pid=document.getElementById('pid').value,plat=document.getElementById('plat').value;
-      if(pid.trim().length<3){alert('Enter Delivery Partner ID');return;}
-      await fetch('/courier/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({partner_id:pid,platform:plat})});
+    async function req(){let pid=document.getElementById('pid').value;
+      await fetch('/courier/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({partner_id:pid,platform:curStop.plat,mode:curStop.mode})});
       document.getElementById('s2').style.display='none';document.getElementById('s3').style.display='block';poll=setInterval(tick,1000);tick();}
     function dots(n){for(let i=1;i<=4;i++){let d=document.getElementById('d'+i);d.className='dot'+(i<n?' done':i==n?' on':'');d.innerHTML=i<n?'✓':i;}}
     async function otpYes(){await fetch('/courier/confirm',{method:'POST'});}
@@ -292,7 +282,8 @@ def cscan():
 @app.route("/courier/request",methods=["POST"])
 def creq():
     d=request.get_json() or {}; S["partner_id"]=d.get("partner_id",""); S["platform"]=d.get("platform","")
-    S["mode"] = "flex" if S["platform"] in INTEGRATED else "mvp"   # platform decides mode
+    m=d.get("mode","")                                            # stop se mode (Amazon MVP bhi ho sakta)
+    S["mode"] = m if m in ("flex","mvp") else ("flex" if S["platform"] in INTEGRATED else "mvp")
     setst("requested")
     if S["mode"]=="flex": setst("approved")
     return jsonify(ok=True,mode=S["mode"])
