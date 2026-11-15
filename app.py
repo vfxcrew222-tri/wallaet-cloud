@@ -12,10 +12,13 @@ def fresh():
     return {"mode":"mvp","status":"idle","partner_id":"","platform":"",
             "photo":False,"weight":0,"unit":"W-304","flat":"Flat 304",
             "parcels":[], "total":0, "last":time.time(), "last_photo_id":None, "last_photo_ids":[],
-            "otp":"", "mismatch":False}
+            "otp":"", "mismatch":False, "last_video_id":None}
 S = fresh()
 PHOTOS = {}        # id -> (content_type, raw_bytes) : asli camera photos Pi se
 _photo_seq = 0
+VIDEOS = {}        # id -> raw mp4 bytes : delivery clip (please-drop se secured)
+_video_seq = 0
+app.config["MAX_CONTENT_LENGTH"] = 40 * 1024 * 1024   # video clip base64 ke liye (~few MB)
 def setst(x): S["status"]=x; S["last"]=time.time()
 
 CSS = """
@@ -114,6 +117,8 @@ def courier():
     <div id='sflex'>
       <div class='lbl' style='margin:2px 4px 12px'>📋 Amazon Flex · Aaj ki deliveries</div>
       <div id='stops'></div>
+      <div class='lbl' style='margin:20px 4px 10px'>📷 Doorstep pe Wallaet box mila? <span style='text-transform:none;letter-spacing:0;color:var(--gr)'>(other platforms — scan karo)</span></div>
+      <div id='mvpstops'></div>
     </div>
     <div id='s0' class='card gold anim' style='display:none;text-align:center'>
       <div class='hero'><div class='em pulse'>📍</div><div class='t' id='s0name'>At the delivery address</div><div class='s' id='s0addr'>Tap when you reach the customer's door</div></div>
@@ -137,28 +142,40 @@ def courier():
       <div id='stt' class='st'>&hellip;</div>
     </div>"""
     js="""let poll;const INTEG=['Amazon','Flipkart'];
-    const STOPS=[
+    const FLEXSTOPS=[
       {type:'box', name:'Priya Sharma', addr:'Flat 304, Green Residency', box:'W-304', plat:'Amazon', mode:'flex', pid:'AMZ-FLX-4821'},
-      {type:'door', name:'Rahul Verma', addr:'Flat 12, MG Road'},
-      {type:'box', name:'Anjali Mehta', addr:'Flat 508, Lake View', box:'W-508', plat:'Meesho', mode:'mvp', pid:'MSH-DEL-7793'},
-      {type:'box', name:'Nitin Jain', addr:'Flat 333, Sky Towers', box:'W-333', plat:'Amazon', mode:'mvp', pid:'AMZ-MVP-3310'}
+      {type:'door', name:'Rahul Verma', addr:'Flat 12, MG Road'}
     ];
-    function renderStops(){document.getElementById('stops').innerHTML=STOPS.map((s,i)=>{
-      if(s.type=='door') return "<div class='card'><div style='display:flex;justify-content:space-between;align-items:center'><div><b>"+s.name+"</b><br><span class='muted' style='font-size:12px'>"+s.addr+"</span></div><span class='badge' style='color:#e88'>🚪 Door</span></div><div class='muted' style='font-size:11px;margin-top:8px'>Hand to customer — no Wallaet box</div></div>";
-      return "<div class='card gold'><div style='display:flex;justify-content:space-between;align-items:center'><div><b>"+s.name+"</b><br><span class='muted' style='font-size:12px'>"+s.addr+"</span></div><span class='badge' style='color:var(--grn)'>📦 "+s.box+"</span></div><div class='muted' style='font-size:11px;margin:6px 0 2px'>"+(s.mode=='flex'?s.plat+' Flex — auto (no OTP)':s.plat+' — owner OTP')+"</div><button class='b-gold' onclick='startStop("+i+")'>Deliver to this box</button></div>";
-    }).join("");}
+    const MVPBOXES=[
+      {name:'Anjali Mehta', addr:'Flat 508, Lake View', box:'W-508', plat:'Meesho', mode:'mvp', pid:'MSH-DEL-7793'},
+      {name:'Nitin Jain', addr:'Flat 333, Sky Towers', box:'W-333', plat:'Amazon', mode:'mvp', pid:'AMZ-MVP-3310'}
+    ];
+    function renderStops(){
+      document.getElementById('stops').innerHTML=FLEXSTOPS.map((s,i)=>{
+        if(s.type=='door') return "<div class='card'><div style='display:flex;justify-content:space-between;align-items:center'><div><b>"+s.name+"</b><br><span class='muted' style='font-size:12px'>"+s.addr+"</span></div><span class='badge' style='color:#e88'>🚪 Door</span></div><div class='muted' style='font-size:11px;margin-top:8px'>Hand to customer — no Wallaet box</div></div>";
+        return "<div class='card gold'><div style='display:flex;justify-content:space-between;align-items:center'><div><b>"+s.name+"</b><br><span class='muted' style='font-size:12px'>"+s.addr+"</span></div><span class='badge' style='color:var(--grn)'>📦 "+s.box+"</span></div><div class='muted' style='font-size:11px;margin:6px 0 2px'>"+s.plat+" Flex — auto (no OTP)</div><button class='b-gold' onclick='startStop("+i+")'>Deliver to this box</button></div>";
+      }).join("");
+      document.getElementById('mvpstops').innerHTML=MVPBOXES.map((s,i)=>
+        "<div class='card'><div style='display:flex;justify-content:space-between;align-items:center'><div><b>"+s.name+"</b><br><span class='muted' style='font-size:12px'>"+s.addr+"</span></div><span class='badge' style='color:var(--gr)'>📦 "+s.box+"</span></div><div class='muted' style='font-size:11px;margin:6px 0 2px'>"+s.plat+" — scan box → owner OTP</div><button class='b-dark' onclick='startMvp("+i+")'>📷 Scan this box</button></div>"
+      ).join("");}
     let curStop=null;
-    function startStop(i){curStop=STOPS[i];
-      document.getElementById('s0name').textContent=curStop.name;
-      document.getElementById('s0addr').textContent=curStop.addr+'  ·  '+curStop.box;
+    function _fillForm(){
       document.getElementById('sbox').textContent=curStop.box;
       document.getElementById('saddr').textContent=curStop.addr;
       document.getElementById('pid').value=curStop.pid;
       let mh=document.getElementById('mh');
       if(curStop.mode=='flex'){mh.style.background='#12261a';mh.style.color='#6FA07A';mh.innerHTML='<b>FLEX</b> — '+curStop.plat+' integrated. Auto-verify, box khulega (no OTP).';}
-      else{mh.style.background='#2a2410';mh.style.color='#C9A24B';mh.innerHTML='<b>MVP</b> — '+curStop.plat+'. Owner OTP se approve karega.';}
+      else{mh.style.background='#2a2410';mh.style.color='#C9A24B';mh.innerHTML='<b>MVP</b> — '+curStop.plat+'. Owner OTP se approve karega.';}}
+    function startStop(i){curStop=FLEXSTOPS[i];       // FLEX: pehle Reached (box beep) phir scan
+      document.getElementById('s0name').textContent=curStop.name;
+      document.getElementById('s0addr').textContent=curStop.addr+'  ·  '+curStop.box;
+      _fillForm();
       document.getElementById('sflex').style.display='none';
       document.getElementById('s0').style.display='block';}
+    function startMvp(i){curStop=MVPBOXES[i];          // MVP: seedha scan (no reached) - box pehle se saamne
+      _fillForm();
+      document.getElementById('sflex').style.display='none';
+      document.getElementById('s1').style.display='block';}
     async function reached(){await fetch('/courier/reached',{method:'POST'});document.getElementById('s0').style.display='none';document.getElementById('s1').style.display='block';}
     function goForm(){fetch('/courier/scan',{method:'POST'});document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='block';}
     function manualScan(){goForm();}
@@ -224,9 +241,9 @@ def owner():
         else c.innerHTML="<div class='card' style='border:1px solid var(--gold);animation:glow 1s infinite'><div style='text-align:center'><span class='shake' style='font-size:56px;display:inline-block'>🔔</span><br><b style='font-size:20px;color:var(--gold)'>Delivery request!</b><br><span class='muted'>SMS wala OTP daal ke approve karo</span></div><div style='margin-top:16px;text-align:center'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div>"+(s.mismatch?"<div class='modebox' style='background:#2a1414;color:#e88;text-align:center;margin-top:12px'>⚠️ Code mismatch — sahi OTP daalein</div>":"")+"<input id='otpIn' type='tel' maxlength='6' placeholder='SMS wala OTP' style='text-align:center;letter-spacing:5px;font-size:19px;margin-top:12px'><button class='b-grn' onclick='ok()'>✓ Approve & send OTP</button><button class='b-dark' onclick='ringHard()'>🔔 Ring again</button></div>";}
       else if(s.status=='otp_sent')c.innerHTML="<div class='card'><div class='st'><div class='ring'></div><b>OTP courier ko bhej diya</b><br><span class='muted'>Code <b style='color:var(--gold);letter-spacing:3px'>"+s.otp+"</b> · courier match confirm kar raha…</span></div></div>";
       else if(s.status=='approved'||s.status=='unlocked')c.innerHTML="<div class='card'><div class='st'><span class='em'>🔓</span><b>Approved</b><br><span class='muted'>Delivery in progress…</span></div></div>";
-      else if(s.status=='delivered')c.innerHTML="<div class='card'><div class='dcard'><div style='display:flex;justify-content:space-between;align-items:center'><b style='color:var(--grn);font-size:16px'>📦 DELIVERED</b><span style='color:var(--grn);font-size:22px'>✓</span></div><div style='margin-top:12px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><div style='margin-top:16px'><span class='muted'>THIS PARCEL</span><div class='big'>"+s.weight+" <span style='font-size:20px;color:var(--gr)'>g</span></div></div>"+((s.last_photo_ids&&s.last_photo_ids.length)?"<div class='lbl' style='margin-top:14px'>Delivery proof · "+s.last_photo_ids.length+" shots</div><div style='display:flex;gap:8px;overflow-x:auto;padding-bottom:4px'>"+s.last_photo_ids.map((id,i)=>"<div style='flex:0 0 auto;text-align:center'><img src='/box/photo/"+id+"' style='height:160px;border-radius:12px;border:1px solid #2a2a30;object-fit:cover;display:block' onclick='window.open(this.src)'><div class='muted' style='font-size:10px;margin-top:4px;letter-spacing:.5px'>"+(['FLAP OPEN','PARCEL IN','DELIVERY'][i]||('SHOT '+(i+1)))+"</div></div>").join("")+"</div>":(s.photo?"<div class='photo'><span style='font-size:30px'>📸</span>Delivery photo captured</div>":""))+"<div style='display:flex;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid #1e1e24'><span class='muted'>Box now holds "+s.parcels.length+" parcel"+(s.parcels.length>1?"s":"")+"</span><b style='color:var(--gold)'>total "+s.total+" g</b></div></div></div>";}
+      else if(s.status=='delivered')c.innerHTML="<div class='card'><div class='dcard'><div style='display:flex;justify-content:space-between;align-items:center'><b style='color:var(--grn);font-size:16px'>📦 DELIVERED</b><span style='color:var(--grn);font-size:22px'>✓</span></div><div style='margin-top:12px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><div style='margin-top:16px'><span class='muted'>THIS PARCEL</span><div class='big'>"+s.weight+" <span style='font-size:20px;color:var(--gr)'>g</span></div></div>"+(s.last_video_id?"<div class='lbl' style='margin-top:14px'>Delivery clip</div><video src='/box/video/"+s.last_video_id+"' controls playsinline style='width:100%;border-radius:12px;border:1px solid #2a2a30;background:#000'></video>":((s.last_photo_ids&&s.last_photo_ids.length)?"<div class='lbl' style='margin-top:14px'>Delivery proof · "+s.last_photo_ids.length+" shots</div><div style='display:flex;gap:8px;overflow-x:auto;padding-bottom:4px'>"+s.last_photo_ids.map((id,i)=>"<div style='flex:0 0 auto;text-align:center'><img src='/box/photo/"+id+"' style='height:160px;border-radius:12px;border:1px solid #2a2a30;object-fit:cover;display:block' onclick='window.open(this.src)'><div class='muted' style='font-size:10px;margin-top:4px;letter-spacing:.5px'>"+(['FLAP OPEN','PARCEL IN','DELIVERY'][i]||('SHOT '+(i+1)))+"</div></div>").join("")+"</div>":(s.photo?"<div class='photo'><span style='font-size:30px'>📸</span>Delivery photo captured</div>":"")))+"<div style='display:flex;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid #1e1e24'><span class='muted'>Box now holds "+s.parcels.length+" parcel"+(s.parcels.length>1?"s":"")+"</span><b style='color:var(--gold)'>total "+s.total+" g</b></div></div></div>";}
     async function tick(){let s=await(await fetch('/state')).json();
-      let key=s.status+'|'+s.partner_id+'|'+(s.parcels?s.parcels.length:0)+'|'+(s.last_photo_ids?s.last_photo_ids.length:0);
+      let key=s.status+'|'+s.partner_id+'|'+(s.parcels?s.parcels.length:0)+'|'+(s.last_photo_ids?s.last_photo_ids.length:0)+'|'+(s.last_video_id||0);
       if(key===last){return;}                  // nothing changed -> no redraw (kills flicker)
       let statusChanged = !last || last.split('|')[0]!==s.status;
       stopRing();                              // any change stops the ring loop
@@ -314,7 +331,7 @@ def bpoll(): return jsonify(command=("unlock" if S["status"]=="approved" else "n
 @app.route("/box/unlocked",methods=["POST"])
 def bunl():
     if S["status"]=="approved": setst("unlocked")
-    S["last_photo_ids"]=[]; S["last_photo_id"]=None   # naya session -> purani session photos clear
+    S["last_photo_ids"]=[]; S["last_photo_id"]=None; S["last_video_id"]=None   # naya session -> purani clear
     return jsonify(ok=True)
 @app.route("/box/delivered",methods=["POST"])
 def bdel():
@@ -359,6 +376,26 @@ def bphoto(pid):
     p=PHOTOS.get(pid)
     if not p: return ("",404)
     return app.response_class(p[1], mimetype=p[0], headers={"Cache-Control":"max-age=86400"})
+@app.route("/box/video_add",methods=["POST"])
+def bvideoadd():
+    # v71: delivery clip (mp4 base64) store + current session/parcel se jodo
+    global _video_seq
+    import base64
+    d=request.get_json() or {}; v=d.get("vid") or ""
+    if not v: return jsonify(ok=False)
+    try:
+        b64=v.split(",",1)[1] if v.startswith("data:") else v
+        _video_seq+=1; VIDEOS[_video_seq]=base64.b64decode(b64)
+        S["last_video_id"]=_video_seq
+        if S["parcels"]: S["parcels"][-1]["video_id"]=_video_seq
+        return jsonify(ok=True, id=_video_seq)
+    except Exception:
+        return jsonify(ok=False)
+@app.route("/box/video/<int:vid>")
+def bvideo(vid):
+    v=VIDEOS.get(vid)
+    if not v: return ("",404)
+    return app.response_class(v, mimetype="video/mp4", headers={"Cache-Control":"max-age=86400","Accept-Ranges":"bytes"})
 def isfull():
     return len(S["parcels"])>=CAP_COUNT or S["total"]>=CAP_WEIGHT
 @app.route("/full")
@@ -366,7 +403,7 @@ def full(): return jsonify(full=isfull(), count=len(S["parcels"]), cap=CAP_COUNT
 @app.route("/next")
 def nxt():
     # ready for the next courier — keep parcels, clear only the current transaction
-    S["status"]="idle"; S["partner_id"]=""; S["platform"]=""; S["weight"]=0; S["photo"]=False; S["last_photo_id"]=None; S["last_photo_ids"]=[]; S["otp"]=""; S["mismatch"]=False; S["mode"]="mvp"; S["last"]=time.time()
+    S["status"]="idle"; S["partner_id"]=""; S["platform"]=""; S["weight"]=0; S["photo"]=False; S["last_photo_id"]=None; S["last_photo_ids"]=[]; S["last_video_id"]=None; S["otp"]=""; S["mismatch"]=False; S["mode"]="mvp"; S["last"]=time.time()
     return jsonify(ok=True)
 @app.route("/reset")
 def reset(): S.update(fresh()); PHOTOS.clear(); return jsonify(ok=True)
