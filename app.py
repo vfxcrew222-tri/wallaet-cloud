@@ -21,6 +21,16 @@ _video_seq = 0
 app.config["MAX_CONTENT_LENGTH"] = 40 * 1024 * 1024   # video clip base64 ke liye (~few MB)
 def setst(x): S["status"]=x; S["last"]=time.time()
 
+DELIVERED_HOLD = 8   # sec: 'delivered' dikhane ke baad auto idle (quiet standby)
+def _auto_idle():
+    # delivered ke kuch sec baad -> session auto-refresh to idle (quiet).
+    # parcels + clips HISTORY rehti hai (plist/Box contents me), sirf current txn clear.
+    if S["status"]=="delivered" and (time.time()-S["last"])>DELIVERED_HOLD:
+        S["status"]="idle"; S["partner_id"]=""; S["platform"]=""; S["weight"]=0
+        S["photo"]=False; S["last_photo_id"]=None; S["last_photo_ids"]=[]
+        S["last_video_id"]=None; S["otp"]=""; S["mismatch"]=False; S["mode"]="mvp"
+        S["last"]=time.time()
+
 CSS = """
 <meta name='viewport' content='width=device-width,initial-scale=1'>
 <link href='https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&display=swap' rel='stylesheet'>
@@ -114,6 +124,7 @@ def demo():
 @app.route("/courier")
 def courier():
     body="""
+    <div style='text-align:right;margin:0 2px 8px'><button class='b-dark' onclick='crefresh()' style='width:auto;padding:7px 15px;font-size:13px'>🔄 Refresh</button></div>
     <div id='sflex'>
       <div class='lbl' style='margin:2px 4px 12px'>📋 Amazon Flex · Aaj ki deliveries</div>
       <div id='stops'></div>
@@ -150,6 +161,7 @@ def courier():
       {name:'Anjali Mehta', addr:'Flat 508, Lake View', box:'W-508', plat:'Meesho', mode:'mvp', pid:'MSH-DEL-7793'},
       {name:'Nitin Jain', addr:'Flat 333, Sky Towers', box:'W-333', plat:'Amazon', mode:'mvp', pid:'AMZ-MVP-3310'}
     ];
+    async function crefresh(){try{await fetch('/next');}catch(e){}location.reload();}  // manual refresh -> stops pe wapas
     function renderStops(){
       document.getElementById('stops').innerHTML=FLEXSTOPS.map((s,i)=>{
         if(s.type=='door') return "<div class='card'><div style='display:flex;justify-content:space-between;align-items:center'><div><b>"+s.name+"</b><br><span class='muted' style='font-size:12px'>"+s.addr+"</span></div><span class='badge' style='color:#e88'>🚪 Door</span></div><div class='muted' style='font-size:11px;margin-top:8px'>Hand to customer — no Wallaet box</div></div>";
@@ -215,6 +227,7 @@ def owner():
       <div class='hero'><div class='em'>🔔</div><div class='t'>Enable alerts</div><div class='s'>Tap once so Wallaet can ring &amp; vibrate for deliveries</div></div>
       <button class='b-gold' onclick='enable()'>🔔  Enable sound &amp; vibration</button>
     </div>
+    <div style='text-align:right;margin:-2px 2px 8px'><button class='b-dark' onclick='refresh()' style='width:auto;padding:7px 15px;font-size:13px'>🔄 Refresh</button></div>
     <div id='c'></div>"""
     js="""let last=null;let ac;let soundOn=false;
     function enable(){try{ac=new(window.AudioContext||window.webkitAudioContext)();let o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);g.gain.setValueAtTime(0.15,ac.currentTime);o.frequency.value=880;o.start();o.stop(ac.currentTime+0.15);}catch(e){}
@@ -255,6 +268,7 @@ def owner():
       last=key;render(s);}
     async function ok(){stopRing();let el=document.getElementById('otpIn');let otp=el?(el.value||'').trim():'';if(!otp){alert('SMS wala OTP daalein');return;}let r=await(await fetch('/owner/approve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({otp:otp})})).json();if(!r.ok)alert(r.err||'OTP daalein');}
     async function empty(){await fetch('/reset');last='';}
+    async function refresh(){await fetch('/next');last=null;tick();}   // manual session refresh (history rehti)
     tick();setInterval(tick,1000);"""
     return shell("Owner · Flat 304", body, js)
 
@@ -287,6 +301,7 @@ def box():
 
 @app.route("/state")
 def state():
+    _auto_idle()
     d=dict(S); d["full"]=isfull(); d["cap"]=CAP_COUNT; return jsonify(d)
 @app.route("/courier/reached",methods=["POST"])
 def creach():
@@ -327,7 +342,9 @@ def cmismatch():
     if S["status"]=="otp_sent": setst("requested")
     return jsonify(ok=True)
 @app.route("/box/poll")
-def bpoll(): return jsonify(command=("unlock" if S["status"]=="approved" else "none"),status=S["status"],mode=S["mode"])
+def bpoll():
+    _auto_idle()
+    return jsonify(command=("unlock" if S["status"]=="approved" else "none"),status=S["status"],mode=S["mode"])
 @app.route("/box/unlocked",methods=["POST"])
 def bunl():
     if S["status"]=="approved": setst("unlocked")
