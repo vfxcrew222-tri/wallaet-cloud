@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify
 import time, os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+IST = timezone(timedelta(hours=5, minutes=30))   # Railway UTC me chalta - IST me dikhana
+def ist_stamp(): return datetime.now(IST).strftime("%d %b, %I:%M %p")   # e.g. 16 Nov, 12:21 PM
 
 app = Flask(__name__)
 
@@ -366,7 +368,7 @@ def bdel():
     ids=list(S.get("last_photo_ids",[]))              # jo photos ab tak aayi (photo_add background se)
     S["photo"]=bool(ids) or bool(d.get("photo",False))
     S["last_photo_id"]=ids[-1] if ids else None
-    S["parcels"].append({"platform":S["platform"],"pid":S["partner_id"],"w":w,"t":datetime.now().strftime("%I:%M %p"),"photo_id":(ids[-1] if ids else None),"photo_ids":ids})
+    S["parcels"].append({"platform":S["platform"],"pid":S["partner_id"],"w":w,"t":ist_stamp(),"photo_id":(ids[-1] if ids else None),"photo_ids":ids})
     S["total"]=sum(p["w"] for p in S["parcels"])
     setst("delivered")
     return jsonify(ok=True, total=S["total"], count=len(S["parcels"]), full=isfull())
@@ -392,7 +394,7 @@ def bphotoadd():
 def bphoto(pid):
     p=PHOTOS.get(pid)
     if not p: return ("",404)
-    return app.response_class(p[1], mimetype=p[0], headers={"Cache-Control":"max-age=86400"})
+    return app.response_class(p[1], mimetype=p[0], headers={"Cache-Control":"no-store, no-cache, must-revalidate"})
 @app.route("/box/video_add",methods=["POST"])
 def bvideoadd():
     # v71: delivery clip (mp4 base64) store + current session/parcel se jodo
@@ -412,7 +414,7 @@ def bvideoadd():
 def bvideo(vid):
     v=VIDEOS.get(vid)
     if not v: return ("",404)
-    return app.response_class(v, mimetype="video/mp4", headers={"Cache-Control":"max-age=86400","Accept-Ranges":"bytes"})
+    return app.response_class(v, mimetype="video/mp4", headers={"Cache-Control":"no-store, no-cache, must-revalidate","Accept-Ranges":"bytes"})
 def isfull():
     return len(S["parcels"])>=CAP_COUNT or S["total"]>=CAP_WEIGHT
 @app.route("/full")
