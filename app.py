@@ -346,7 +346,8 @@ def cmismatch():
 @app.route("/box/poll")
 def bpoll():
     _auto_idle()
-    return jsonify(command=("unlock" if S["status"]=="approved" else "none"),status=S["status"],mode=S["mode"])
+    return jsonify(command=("unlock" if S["status"]=="approved" else "none"),status=S["status"],mode=S["mode"],
+                   otp=(S["otp"] if S["status"]=="otp_sent" else ""))
 @app.route("/box/unlocked",methods=["POST"])
 def bunl():
     if S["status"]=="approved": setst("unlocked")
