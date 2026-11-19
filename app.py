@@ -14,7 +14,8 @@ def fresh():
     return {"mode":"mvp","status":"idle","partner_id":"","platform":"",
             "photo":False,"weight":0,"unit":"W-304","flat":"Flat 304",
             "parcels":[], "total":0, "last":time.time(), "last_photo_id":None, "last_photo_ids":[],
-            "otp":"", "mismatch":False, "last_video_id":None}
+            "otp":"", "mismatch":False, "last_video_id":None,
+            "theft":False, "theft_at":""}
 S = fresh()
 PHOTOS = {}        # id -> (content_type, raw_bytes) : asli camera photos Pi se
 _photo_seq = 0
