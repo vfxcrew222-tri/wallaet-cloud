@@ -191,7 +191,9 @@ def courier():
       _fillForm();
       document.getElementById('sflex').style.display='none';
       document.getElementById('s1').style.display='block';}
-    async function reached(){await fetch('/courier/reached',{method:'POST'});document.getElementById('s0').style.display='none';document.getElementById('s1').style.display='block';}
+    async function reached(){await fetch('/courier/reached',{method:'POST'});
+      document.getElementById('s0').style.display='none';
+      req();}   // FLEX = integrated: no scan, seedha auto-verify (backend auto-approve karta)
     function goForm(){fetch('/courier/scan',{method:'POST'});document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='block';}
     function manualScan(){goForm();}
     let qr;
