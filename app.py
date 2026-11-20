@@ -231,8 +231,9 @@ def owner():
       <button class='b-gold' onclick='enable()'>🔔  Enable sound &amp; vibration</button>
     </div>
     <div style='text-align:right;margin:-2px 2px 8px'><button class='b-dark' onclick='refresh()' style='width:auto;padding:7px 15px;font-size:13px'>🔄 Refresh</button></div>
+    <div id='theftbar'></div>
     <div id='c'></div>"""
-    js="""let last=null;let ac;let soundOn=false;
+    js="""let last=null;let ac;let soundOn=false;let theftShown=false;
     function enable(){try{ac=new(window.AudioContext||window.webkitAudioContext)();let o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);g.gain.setValueAtTime(0.15,ac.currentTime);o.frequency.value=880;o.start();o.stop(ac.currentTime+0.15);}catch(e){}
       if(navigator.vibrate)navigator.vibrate(120);soundOn=true;document.getElementById('enable').style.display='none';}
     let ringTimer=null;
@@ -243,6 +244,11 @@ def owner():
     function ringHard(){bell();if(navigator.vibrate)navigator.vibrate([400,150,400]);}
     function startRing(){if(ringTimer)return;ringHard();ringTimer=setInterval(ringHard,1600);}
     function stopRing(){if(ringTimer){clearInterval(ringTimer);ringTimer=null;}}
+    let theftTimer=null;
+    function siren(){tone([[1245,0.28,0],[740,0.28,0.28]]);if(navigator.vibrate)navigator.vibrate([300,90,300,90,300]);}
+    function startTheft(){if(theftTimer)return;siren();theftTimer=setInterval(siren,1000);}
+    function stopTheft(){if(theftTimer){clearInterval(theftTimer);theftTimer=null;}}
+    async function ackTheft(){stopTheft();await fetch('/box/theft_clear');last=null;tick();}
     function plist(s){if(!s.parcels||!s.parcels.length)return"";let rows=s.parcels.map((p,i)=>"<div style='padding:9px 0;border-bottom:1px solid #1e1e24'><div style='display:flex;justify-content:space-between;align-items:center'><span>📦 "+(i+1)+" · "+p.platform+"<br><span class='muted' style='font-size:11px'>🕐 "+(p.t||"")+" · "+p.pid+"</span></span><span style='display:flex;align-items:center;gap:9px'>"+((p.photo_ids&&p.photo_ids.length)?"<span style='display:flex;gap:4px'>"+p.photo_ids.map((id,i)=>"<img title='"+(['Flap open','Parcel in','Delivery'][i]||('Shot '+(i+1)))+"' src='/box/photo/"+id+"' style='width:34px;height:34px;object-fit:cover;border-radius:7px;border:1px solid #2a2a30' onclick='window.open(this.src)'>").join("")+"</span>":(p.photo_id?"<img src='/box/photo/"+p.photo_id+"' style='width:34px;height:34px;object-fit:cover;border-radius:7px;border:1px solid #2a2a30' onclick='window.open(this.src)'>":""))+"<b style='color:var(--gold)'>"+p.w+" g</b></span></div>"+(p.video_id?"<div style='margin-top:8px'><div class='muted' style='font-size:10px;letter-spacing:.5px;margin-bottom:4px'>🎬 DELIVERY CLIP</div><video src='/box/video/"+p.video_id+"' controls playsinline preload='metadata' style='width:100%;border-radius:10px;border:1px solid #2a2a30;background:#000;transform:rotate(180deg)'></video></div>":"")+"</div>").join("");
       let full=s.full?"<div class='modebox' style='background:#2a1414;color:#e88;text-align:center;font-weight:700'>⚠️ BOX FULL — "+s.parcels.length+"/"+s.cap+" parcels. Please empty it.</div>":"";
       return "<div class='card'><div style='display:flex;justify-content:space-between;align-items:center'><b>📥 Box contents</b><span class='badge'>"+s.parcels.length+"/"+s.cap+" parcels</span></div>"+full+"<div style='margin-top:10px'>"+rows+"</div><div style='display:flex;justify-content:space-between;margin-top:14px'><span class='muted'>TOTAL WEIGHT</span><b class='big' style='font-size:30px'>"+s.total+" <span style='font-size:15px;color:var(--gr)'>g</span></b></div><button class='b-red' onclick='empty()'>🔓 Empty box (I collected)</button></div>";}
@@ -259,7 +265,10 @@ def owner():
       else if(s.status=='approved'||s.status=='unlocked')c.innerHTML="<div class='card'><div class='st'><span class='em'>🔓</span><b>Approved</b><br><span class='muted'>Delivery in progress…</span></div></div>";
       else if(s.status=='delivered')c.innerHTML="<div class='card'><div class='dcard'><div style='display:flex;justify-content:space-between;align-items:center'><b style='color:var(--grn);font-size:16px'>📦 DELIVERED</b><span style='color:var(--grn);font-size:22px'>✓</span></div><div style='margin-top:12px'><span class='badge'>🛍️ "+s.platform+"</span><span class='badge'>🪪 "+s.partner_id+"</span></div><div style='margin-top:16px'><span class='muted'>THIS PARCEL</span><div class='big'>"+s.weight+" <span style='font-size:20px;color:var(--gr)'>g</span></div></div>"+(s.last_video_id?"<div class='lbl' style='margin-top:14px'>Delivery clip</div><video src='/box/video/"+s.last_video_id+"' controls playsinline style='width:100%;border-radius:12px;border:1px solid #2a2a30;background:#000;transform:rotate(180deg)'></video>":((s.last_photo_ids&&s.last_photo_ids.length)?"<div class='lbl' style='margin-top:14px'>Delivery proof · "+s.last_photo_ids.length+" shots</div><div style='display:flex;gap:8px;overflow-x:auto;padding-bottom:4px'>"+s.last_photo_ids.map((id,i)=>"<div style='flex:0 0 auto;text-align:center'><img src='/box/photo/"+id+"' style='height:160px;border-radius:12px;border:1px solid #2a2a30;object-fit:cover;display:block' onclick='window.open(this.src)'><div class='muted' style='font-size:10px;margin-top:4px;letter-spacing:.5px'>"+(['FLAP OPEN','PARCEL IN','DELIVERY'][i]||('SHOT '+(i+1)))+"</div></div>").join("")+"</div>":(s.photo?"<div class='photo'><span style='font-size:30px'>📸</span>Delivery photo captured</div>":"")))+"<div style='display:flex;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid #1e1e24'><span class='muted'>Box now holds "+s.parcels.length+" parcel"+(s.parcels.length>1?"s":"")+"</span><b style='color:var(--gold)'>total "+s.total+" g</b></div></div></div>";}
     async function tick(){let s=await(await fetch('/state')).json();
-      let key=s.status+'|'+s.partner_id+'|'+(s.parcels?s.parcels.length:0)+'|'+(s.last_photo_ids?s.last_photo_ids.length:0)+'|'+(s.last_video_id||0);
+      if(s.theft&&!theftShown){theftShown=true;startTheft();
+        document.getElementById('theftbar').innerHTML="<div class='card' style='background:#3a1215;border:2px solid #ff5566;animation:glow 0.6s infinite'><div style='text-align:center'><span style='font-size:48px'>🚨</span><br><b style='font-size:22px;color:#ff5566'>THEFT ALERT</b><br><span class='muted'>Box pe chhedchhaad detect hui"+(s.theft_at?' · '+s.theft_at:'')+"</span><br><button class='b-red' onclick='ackTheft()' style='margin-top:12px'>Acknowledge &amp; stop alarm</button></div></div>";}
+      else if(!s.theft&&theftShown){theftShown=false;stopTheft();document.getElementById('theftbar').innerHTML='';}
+      let key=s.status+'|'+s.partner_id+'|'+(s.parcels?s.parcels.length:0)+'|'+(s.last_photo_ids?s.last_photo_ids.length:0)+'|'+(s.last_video_id||0)+'|'+(s.theft?'T':'');
       if(key===last){return;}                  // nothing changed -> no redraw (kills flicker)
       let statusChanged = !last || last.split('|')[0]!==s.status;
       stopRing();                              // any change stops the ring loop
@@ -353,6 +362,14 @@ def bpoll():
 def bunl():
     if S["status"]=="approved": setst("unlocked")
     S["last_photo_ids"]=[]; S["last_photo_id"]=None; S["last_video_id"]=None   # naya session -> purani clear
+    return jsonify(ok=True)
+@app.route("/box/theft",methods=["POST"])
+def btheft():                                  # v80: Pi se theft -> owner app ring/alert
+    S["theft"]=True; S["theft_at"]=ist_stamp()
+    return jsonify(ok=True)
+@app.route("/box/theft_clear")
+def btheft_clear():                            # owner ne acknowledge kiya -> alarm band
+    S["theft"]=False
     return jsonify(ok=True)
 @app.route("/box/delivered",methods=["POST"])
 def bdel():
